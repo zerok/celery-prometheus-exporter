@@ -80,7 +80,7 @@ def main():
 
     setup_metrics()
     t = MonitorThread()
-    t.app = celery.Celery(broker="redis://redis:6379/0")
+    t.app = celery.Celery(broker=opts.broker)
     t.start()
     start_httpd(opts.addr)
     t.join()
