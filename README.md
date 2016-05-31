@@ -17,7 +17,7 @@ work-in-progress and in flux. For this reason the only way to use this is to
 check the code out and run with it.
 
 ```
-$ python main.py
+$ python celery_prometheus_exporter.py
 Starting HTTPD on 0.0.0.0:8888
 ```
 
