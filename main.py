@@ -4,6 +4,8 @@ import celery.states
 import collections
 import logging
 import prometheus_client
+import signal
+import sys
 import threading
 import time
 
@@ -88,6 +90,16 @@ def start_httpd(addr):
     prometheus_client.start_http_server(int(port), host)
 
 
+def shutdown(signum, frame):
+    """
+    Shutdown is called if the process receives a TERM signal. This way
+    we try to prevent an ugly stacktrace being rendered to the user on
+    a normal shutdown.
+    """
+    logging.info("Shutting down")
+    sys.exit(0)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -107,8 +119,12 @@ def main():
     else:
         logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 
+    signal.signal(signal.SIGINT, shutdown)
+    signal.signal(signal.SIGTERM, shutdown)
+
     setup_metrics()
     t = MonitorThread(app=celery.Celery(broker=opts.broker))
+    t.daemon = True
     t.start()
     start_httpd(opts.addr)
     t.join()
