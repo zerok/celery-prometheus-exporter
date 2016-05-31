@@ -2,12 +2,16 @@ import argparse
 import celery
 import celery.states
 import collections
+import logging
 import prometheus_client
 import threading
+import time
 
 
 DEFAULT_BROKER = 'redis://redis:6379/0'
 DEFAULT_ADDR = '0.0.0.0:8888'
+
+LOG_FORMAT = '[%(asctime)s] %(name)s:%(levelname)s: %(message)s'
 
 TASKS = prometheus_client.Gauge(
     'celery_tasks', 'Number of tasks per state', ['state'])
@@ -20,6 +24,17 @@ class MonitorThread(threading.Thread):
     MonitorThread is the thread that will collect the data that is later
     exposed from Celery using its eventing system.
     """
+
+    def __init__(self, *args, **kwargs):
+        if 'app' in kwargs:
+            app = kwargs['app']
+            del kwargs['app']
+        else:
+            app = None
+        self.app = app
+        self.log = logging.getLogger('monitor')
+        super().__init__(*args, **kwargs)
+
     def run(self):
         self._state = self.app.events.State()
         self._known_states = set()
@@ -40,11 +55,17 @@ class MonitorThread(threading.Thread):
 
     def _monitor(self):
         while True:
-            with self.app.connection() as conn:
-                recv = self.app.events.Receiver(conn, handlers={
-                    '*': self._process_event,
-                })
-                recv.capture(limit=None, timeout=None, wakeup=True)
+            try:
+                with self.app.connection() as conn:
+                    recv = self.app.events.Receiver(conn, handlers={
+                        '*': self._process_event,
+                    })
+                    recv.capture(limit=None, timeout=None, wakeup=True)
+                    self.log.info("Connected to broker")
+            except Exception as e:
+                self.log.error("Queue connection failed")
+                setup_metrics()
+                time.sleep(5)
 
 
 def setup_metrics():
@@ -63,7 +84,7 @@ def start_httpd(addr):
     thread.
     """
     host, port = addr.split(':')
-    print('Starting HTTPD on {}:{}'.format(host, port))
+    logging.info('Starting HTTPD on {}:{}'.format(host, port))
     prometheus_client.start_http_server(int(port), host)
 
 
@@ -76,11 +97,18 @@ def main():
         '--addr', dest='addr', default=DEFAULT_ADDR,
         help="Address the HTTPD should listen on. Defaults to {}".format(
             DEFAULT_ADDR))
+    parser.add_argument(
+        '--verbose', action='store_true', default=False,
+        help="Enable verbose logging")
     opts = parser.parse_args()
 
+    if opts.verbose:
+        logging.basicConfig(level=logging.DEBUG, format=LOG_FORMAT)
+    else:
+        logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
+
     setup_metrics()
-    t = MonitorThread()
-    t.app = celery.Celery(broker=opts.broker)
+    t = MonitorThread(app=celery.Celery(broker=opts.broker))
     t.start()
     start_httpd(opts.addr)
     t.join()
