@@ -19,13 +19,11 @@ class MonitorThread(threading.Thread):
     from Celery using its eventing system.
     """
     def run(self):
-        app = celery.Celery(broker="redis://redis:6379/0")
-        self._state = app.events.State()
+        self._state = self.app.events.State()
         self._known_states = set()
-        self._monitor(app)
+        self._monitor()
 
     def _process_event(self, evt):
-        self._state.clear()
         self._state.event(evt)
         cnt = collections.Counter(t.state for _, t in self._state.tasks.items())
         self._known_states.update(cnt.elements())
@@ -35,13 +33,13 @@ class MonitorThread(threading.Thread):
             seen_states.add(state_name)
         for state_name in self._known_states - seen_states:
             TASKS.labels(state_name).set(0)
-        WORKERS.set(len(self._state.alive_workers()))
+        WORKERS.set(len([w for w in self._state.workers.values() if w.alive]))
 
-    def _monitor(self, app):
+    def _monitor(self):
         while True:
-            with app.connection() as conn:
-                recv = app.events.Receiver(conn, handlers={
-                    '*': self._process_event
+            with self.app.connection() as conn:
+                recv = self.app.events.Receiver(conn, handlers={
+                    '*': self._process_event,
                 })
                 recv.capture(limit=None, timeout=None, wakeup=True)
 
@@ -78,6 +76,7 @@ def main():
 
     setup_metrics()
     t = MonitorThread()
+    t.app = celery.Celery(broker="redis://redis:6379/0")
     t.start()
     start_httpd(opts.addr)
     t.join()
