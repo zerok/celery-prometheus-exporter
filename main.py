@@ -1,22 +1,24 @@
-import collections
+import argparse
 import celery
 import celery.states
-import threading
+import collections
 import prometheus_client
-import argparse
+import threading
 
 
-DEFAULT_BROKER='redis://redis:6379/0'
-DEFAULT_ADDR='0.0.0.0:8888'
+DEFAULT_BROKER = 'redis://redis:6379/0'
+DEFAULT_ADDR = '0.0.0.0:8888'
 
-TASKS = prometheus_client.Gauge('celery_tasks', 'Number of tasks per state', ['state'])
-WORKERS = prometheus_client.Gauge('celery_workers', 'Number of alive workers')
+TASKS = prometheus_client.Gauge(
+    'celery_tasks', 'Number of tasks per state', ['state'])
+WORKERS = prometheus_client.Gauge(
+    'celery_workers', 'Number of alive workers')
 
 
 class MonitorThread(threading.Thread):
     """
-    MonitorThread is the thread that will collect the data that is later exposed
-    from Celery using its eventing system.
+    MonitorThread is the thread that will collect the data that is later
+    exposed from Celery using its eventing system.
     """
     def run(self):
         self._state = self.app.events.State()
@@ -25,7 +27,8 @@ class MonitorThread(threading.Thread):
 
     def _process_event(self, evt):
         self._state.event(evt)
-        cnt = collections.Counter(t.state for _, t in self._state.tasks.items())
+        cnt = collections.Counter(
+            t.state for _, t in self._state.tasks.items())
         self._known_states.update(cnt.elements())
         seen_states = set()
         for state_name, count in cnt.items():
@@ -71,7 +74,8 @@ def main():
         help="URL to the Celery broker. Defaults to {}".format(DEFAULT_BROKER))
     parser.add_argument(
         '--addr', dest='addr', default=DEFAULT_ADDR,
-        help="Address the HTTPD should listen on. Defaults to {}".format(DEFAULT_ADDR))
+        help="Address the HTTPD should listen on. Defaults to {}".format(
+            DEFAULT_ADDR))
     opts = parser.parse_args()
 
     setup_metrics()
