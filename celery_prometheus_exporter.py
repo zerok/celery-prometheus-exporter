@@ -27,45 +27,43 @@ class MonitorThread(threading.Thread):
     exposed from Celery using its eventing system.
     """
 
-    def __init__(self, *args, **kwargs):
-        if 'app' in kwargs:
-            app = kwargs['app']
-            del kwargs['app']
-        else:
-            app = None
-        self.app = app
+    def __init__(self, *args, app=None, **kwargs):
+        self._app = app
         self.log = logging.getLogger('monitor')
         super().__init__(*args, **kwargs)
 
     def run(self):
-        self._state = self.app.events.State()
+        self._state = self._app.events.State()
         self._known_states = set()
         self._monitor()
 
     def _process_event(self, evt):
-        self._state.event(evt)
-        cnt = collections.Counter(
-            t.state for _, t in self._state.tasks.items())
-        self._known_states.update(cnt.elements())
-        seen_states = set()
-        for state_name, count in cnt.items():
-            TASKS.labels(state_name).set(count)
-            seen_states.add(state_name)
-        for state_name in self._known_states - seen_states:
-            TASKS.labels(state_name).set(0)
-        WORKERS.set(len([w for w in self._state.workers.values() if w.alive]))
+        # Events might come in in parallel. Celery already has a lock that deals
+        # with this exact situation so we'll use that for now.
+        with self._state._mutex:
+            self._state._event(evt)
+            cnt = collections.Counter(
+                t.state for _, t in self._state.tasks.items())
+            self._known_states.update(cnt.elements())
+            seen_states = set()
+            for state_name, count in cnt.items():
+                TASKS.labels(state_name).set(count)
+                seen_states.add(state_name)
+            for state_name in self._known_states - seen_states:
+                TASKS.labels(state_name).set(0)
+            WORKERS.set(len([w for w in self._state.workers.values() if w.alive]))
 
     def _monitor(self):
         while True:
             try:
-                with self.app.connection() as conn:
-                    recv = self.app.events.Receiver(conn, handlers={
+                with self._app.connection() as conn:
+                    recv = self._app.events.Receiver(conn, handlers={
                         '*': self._process_event,
                     })
                     recv.capture(limit=None, timeout=None, wakeup=True)
                     self.log.info("Connected to broker")
             except Exception as e:
-                self.log.error("Queue connection failed")
+                self.log.error("Queue connection failed", e)
                 setup_metrics()
                 time.sleep(5)
 
