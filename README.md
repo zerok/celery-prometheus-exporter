@@ -1,7 +1,7 @@
-**Warning:** This is still experimental!
-
 celery-prometheus-exporter is a little exporter for Celery related metrics in
-order to get picked up by Prometheus.
+order to get picked up by Prometheus. As with other exporters like
+mongodb\_exporter or node\_exporter this has been implemented as a
+standalone-service to make reuse easier across different frameworks.
 
 So far it provides access to the following metrics:
 
@@ -12,14 +12,20 @@ So far it provides access to the following metrics:
 
 ## How to use
 
-At this point this isn't available on PyPI as the code is still very much
-work-in-progress and in flux. For this reason the only way to use this is to
-check the code out and run with it.
+There are multiple ways to install this. The obvious one is using `pip install
+celery-prometheus-exporter` and then using the `celery-prometheus-exporter`
+command.
 
 ```
-$ python celery_prometheus_exporter.py
+$ celery_prometheus_exporter
 Starting HTTPD on 0.0.0.0:8888
 ```
+
+This package only depends on Celery directly, so you will have to install
+whatever other dependencies you will need for it to speak with your broker 🙂
+
+Alternatively, you can the bundle Makefile and Dockerfile to generate a Docker
+image.
 
 If you want the HTTPD to listen to another port, use the `--addr` option.
 
@@ -27,9 +33,6 @@ By default, this will expect the broker to be available through
 `redis://redis:6379/0`. If you're using AMQP or something else other than Redis,
 take a look at the Celery documentation and install the additioinal requirements
 😊 Also use the `--broker` option to specify a different broker URL.
-
-There is also a Dockerfile and a Makefile available which you should be able to
-use out of the box to get this going with Docker. The image exposes port 8888.
 
 If you then look at the exposed metrics, you should see something like this:
 
