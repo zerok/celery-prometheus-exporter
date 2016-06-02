@@ -1,1 +1,1 @@
-include README.md celery_prometheus_exporter.py
+include README.rst celery_prometheus_exporter.py

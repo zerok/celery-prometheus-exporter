@@ -1,8 +1,16 @@
+import io
+
 from setuptools import setup
 
 
+long_description = "See https://github.com/zerok/celery-prometheus-exporter"
+with io.open('README.rst', encoding='utf-8') as fp:
+    long_description = fp.read()
+
 setup(
     name='celery-prometheus-exporter',
+    description="Simple Prometheus metrics exporter for Celery",
+    long_description=long_description,
     version='1.0.0',
     author='Horst Gutmann',
     license='MIT',
