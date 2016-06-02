@@ -9,6 +9,8 @@ import sys
 import threading
 import time
 
+__VERSION__ = (1, 0, 0, 'final', 0)
+
 
 DEFAULT_BROKER = 'redis://redis:6379/0'
 DEFAULT_ADDR = '0.0.0.0:8888'
@@ -110,6 +112,8 @@ def main():
     parser.add_argument(
         '--verbose', action='store_true', default=False,
         help="Enable verbose logging")
+    parser.add_argument(
+        '--version', action='version', version='.'.join([str(x) for x in __VERSION__]))
     opts = parser.parse_args()
 
     if opts.verbose:
