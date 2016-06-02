@@ -51,3 +51,10 @@ celery_tasks{state="RECEIVED"} 0.0
 celery_tasks{state="REVOKED"} 0.0
 celery_tasks{state="RETRY"} 0.0
 ```
+
+### Limitations
+
+Among tons of other features celery-prometheus-exporter doesn't support stats
+for multiple queues. As far as I can tell, only the routing key is exposed
+through the events API which might be enough to figure out the final queue,
+though.
