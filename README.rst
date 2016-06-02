@@ -21,7 +21,7 @@ There are multiple ways to install this. The obvious one is using ``pip install
 celery-prometheus-exporter`` and then using the ``celery-prometheus-exporter``
 command::
 
-  $ celery_prometheus_exporter
+  $ celery-prometheus-exporter
   Starting HTTPD on 0.0.0.0:8888
 
 This package only depends on Celery directly, so you will have to install
