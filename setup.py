@@ -8,11 +8,18 @@ setup(
     license='MIT',
     author_email='horst@zerokspot.com',
     url='https://github.com/zerok/celery-prometheus-exporter',
+    classifiers=[
+        'Development Status :: 3 - Alpha',
+        'Environment :: Console',
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3 :: Only',
+    ],
     py_modules=[
         'celery_prometheus_exporter',
     ],
     install_requires=[
-        'celery',
+        'celery>=3,<4',
         'prometheus_client',
     ],
     entry_points={

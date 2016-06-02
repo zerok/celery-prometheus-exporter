@@ -4,4 +4,4 @@ celery_exporter.img: celery_prometheus_exporter.py Dockerfile requirements.txt
 
 .PHONY: clean
 clean:
-	rm -f celery_exporter.img
+	rm -rf celery_exporter.img *.egg-info build dist
