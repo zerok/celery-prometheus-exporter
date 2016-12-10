@@ -1,12 +1,13 @@
 FROM python:3.5-alpine
 MAINTAINER Horst Gutmann <horst@zerokspot.com>
 
-RUN mkdir /app
-ADD celery_prometheus_exporter.py docker-entrypoint.sh requirements.txt /app/
+RUN mkdir -p /app/requirements
+ADD requirements/* /app/requirements/
 WORKDIR /app
 
 ENV PYTHONUNBUFFERED 1
-RUN pip install -r requirements.txt
+RUN pip install -r requirements/celery3.txt
+ADD celery_prometheus_exporter.py docker-entrypoint.sh /app/
 ENTRYPOINT ["/bin/sh", "/app/docker-entrypoint.sh"]
 CMD []
 

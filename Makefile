@@ -1,7 +1,13 @@
-celery_exporter.img: celery_prometheus_exporter.py Dockerfile requirements.txt
-	docker build -t celery_exporter .
-	docker save -o $@ celery_exporter:latest
+all: celery_exporter-celery3.img celery_exporter-celery4.img
 
-.PHONY: clean
+celery_exporter-celery3.img: celery_prometheus_exporter.py Dockerfile-celery3 requirements/*
+	docker build -f Dockerfile-celery3 -t celery_exporter:1-celery3 .
+	docker save -o $@ celery_exporter:1-celery3
+
+celery_exporter-celery4.img: celery_prometheus_exporter.py Dockerfile-celery4 requirements/*
+	docker build -f Dockerfile-celery4 -t celery_exporter:1-celery4 .
+	docker save -o $@ celery_exporter:1-celery4
+
+.PHONY: clean all
 clean:
 	rm -rf celery_exporter.img *.egg-info build dist
