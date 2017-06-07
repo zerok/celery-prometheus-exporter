@@ -27,6 +27,9 @@ command::
 This package only depends on Celery directly, so you will have to install
 whatever other dependencies you will need for it to speak with your broker 🙂
 
+Celery workers have to be configured to send task-related events:
+http://docs.celeryproject.org/en/latest/userguide/configuration.html#worker-send-task-events.
+
 Alternatively, you can use the bundle Makefile and Dockerfile to generate a
 Docker image.
 
