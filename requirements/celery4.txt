@@ -1,2 +1,2 @@
 -r base.txt
-celery==4.0.1
+celery==4.0.2

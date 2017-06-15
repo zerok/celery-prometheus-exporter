@@ -11,7 +11,7 @@ setup(
     name='celery-prometheus-exporter',
     description="Simple Prometheus metrics exporter for Celery",
     long_description=long_description,
-    version='1.0.0',
+    version='1.0.1',
     author='Horst Gutmann',
     license='MIT',
     author_email='horst@zerokspot.com',
@@ -27,7 +27,7 @@ setup(
         'celery_prometheus_exporter',
     ],
     install_requires=[
-        'celery>=3,<4',
+        'celery>=3',
         'prometheus_client',
     ],
     entry_points={

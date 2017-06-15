@@ -1,2 +1,2 @@
 -r base.txt
-celery==3.1.23
+celery==3.1.25

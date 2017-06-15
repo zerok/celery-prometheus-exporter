@@ -9,7 +9,7 @@ import sys
 import threading
 import time
 
-__VERSION__ = (1, 0, 0, 'final', 0)
+__VERSION__ = (1, 0, 1, 'final', 0)
 
 
 DEFAULT_BROKER = 'redis://redis:6379/0'
