@@ -13,7 +13,11 @@ clean:
 	rm -rf celery_exporter.img *.egg-info build dist
 
 publish: all
-	docker tag celery_exporter:1-celery3 zerok/celery_exporter:1.0.1-celery3
-	docker tag celery_exporter:1-celery4 zerok/celery_exporter:1.0.1-celery4
-	docker push zerok/celery_exporter:1.0.1-celery4
-	docker push zerok/celery_exporter:1.0.1-celery3
+	docker tag celery_exporter:1-celery3 zerok/celery_exporter:1-celery3
+	docker tag celery_exporter:1-celery3 zerok/celery_exporter:1.1.0-celery3
+	docker tag celery_exporter:1-celery4 zerok/celery_exporter:1-celery4
+	docker tag celery_exporter:1-celery4 zerok/celery_exporter:1.1.0-celery4
+	docker push zerok/celery_exporter:1-celery4
+	docker push zerok/celery_exporter:1.1.0-celery4
+	docker push zerok/celery_exporter:1-celery3
+	docker push zerok/celery_exporter:1.1.0-celery3
