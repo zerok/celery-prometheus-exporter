@@ -21,6 +21,8 @@ TASKS = prometheus_client.Gauge(
     'celery_tasks', 'Number of tasks per state', ['state'])
 WORKERS = prometheus_client.Gauge(
     'celery_workers', 'Number of alive workers')
+LATENCY = prometheus_client.Histogram(
+    'celery_task_latency', 'Seconds between a task is received and started.')
 
 
 class MonitorThread(threading.Thread):
@@ -37,29 +39,51 @@ class MonitorThread(threading.Thread):
     def run(self):
         self._state = self._app.events.State()
         self._known_states = set()
+        self._tasks_started = dict()
         self._monitor()
 
     def _process_event(self, evt):
         # Events might come in in parallel. Celery already has a lock that deals
         # with this exact situation so we'll use that for now.
         with self._state._mutex:
-            self._state._event(evt)
-            cnt = collections.Counter(
-                t.state for _, t in self._state.tasks.items())
-            self._known_states.update(cnt.elements())
-            seen_states = set()
-            for state_name, count in cnt.items():
-                TASKS.labels(state_name).set(count)
-                seen_states.add(state_name)
-            for state_name in self._known_states - seen_states:
-                TASKS.labels(state_name).set(0)
+            if evt['type'].startswith('task-'):
+                self._collect_tasks(evt)
             WORKERS.set(len([w for w in self._state.workers.values() if w.alive]))
+
+    def _process_task_received(self, evt):
+        with self._state._mutex:
+            self._tasks_started[evt['uuid']] = evt['local_received']
+            self._collect_tasks(evt)
+
+    def _process_task_started(self, evt):
+        with self._state._mutex:
+            try:
+                start = self._tasks_started.pop(evt['uuid'])
+            except KeyError:
+                pass
+            else:
+                LATENCY.observe(evt['local_received'] - start)
+            self._collect_tasks(evt)
+
+    def _collect_tasks(self, evt):
+        self._state._event(evt)
+        cnt = collections.Counter(
+            t.state for _, t in self._state.tasks.items())
+        self._known_states.update(cnt.elements())
+        seen_states = set()
+        for state_name, count in cnt.items():
+            TASKS.labels(state_name).set(count)
+            seen_states.add(state_name)
+        for state_name in self._known_states - seen_states:
+            TASKS.labels(state_name).set(0)
 
     def _monitor(self):
         while True:
             try:
                 with self._app.connection() as conn:
                     recv = self._app.events.Receiver(conn, handlers={
+                        'task-received': self._process_task_received,
+                        'task-started': self._process_task_started,
                         '*': self._process_event,
                     })
                     recv.capture(limit=None, timeout=None, wakeup=True)
