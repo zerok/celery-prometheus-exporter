@@ -41,6 +41,9 @@ Redis, take a look at the Celery documentation and install the additioinal
 requirements 😊 Also use the ``--broker`` option to specify a different broker
 URL.
 
+Use ``--tz`` to specify the timezone the Celery app is using. Otherwise the
+systems local time will be used.
+
 If you then look at the exposed metrics, you should see something like this::
 
   $ http get http://localhost:8888/metrics | grep celery_
