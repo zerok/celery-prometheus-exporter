@@ -143,7 +143,7 @@ def main():
         '--broker', dest='broker', default=DEFAULT_BROKER,
         help="URL to the Celery broker. Defaults to {}".format(DEFAULT_BROKER))
     parser.add_argument(
-        '--transport_options', dest='transport_options',
+        '--transport-options', dest='transport_options',
         help="JSON object with additional options passed to the underlying transport.")
     parser.add_argument(
         '--addr', dest='addr', default=DEFAULT_ADDR,
