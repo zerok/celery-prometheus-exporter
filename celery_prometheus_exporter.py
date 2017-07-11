@@ -9,6 +9,7 @@ import sys
 import threading
 import time
 import json
+import os
 
 __VERSION__ = (1, 1, 0, 'final', 0)
 
@@ -95,6 +96,17 @@ class MonitorThread(threading.Thread):
                 time.sleep(5)
 
 
+class WorkerMonitoringThread(threading.Thread):
+    def __init__(self, *args, app=None, **kwargs):
+        self._app = app
+        super().__init__(*args, **kwargs)
+
+    def run(self):
+        while True:
+            WORKERS.set(len(self._app.control.ping(timeout=5)))
+            time.sleep(5)
+
+
 def setup_metrics():
     """
     This initializes the available metrics with default values so that
@@ -138,6 +150,9 @@ def main():
         help="Address the HTTPD should listen on. Defaults to {}".format(
             DEFAULT_ADDR))
     parser.add_argument(
+        '--tz', dest='tz',
+        help="Timezone used by the celery app.")
+    parser.add_argument(
         '--verbose', action='store_true', default=False,
         help="Enable verbose logging")
     parser.add_argument(
@@ -152,8 +167,13 @@ def main():
     signal.signal(signal.SIGINT, shutdown)
     signal.signal(signal.SIGTERM, shutdown)
 
+    if opts.tz:
+        os.environ['TZ'] = opts.tz
+        time.tzset()
+
     setup_metrics()
     app = celery.Celery(broker=opts.broker)
+
     if opts.transport_options:
         try:
             transport_options = json.loads(opts.transport_options)
@@ -163,11 +183,16 @@ def main():
             return
         else:
             app.conf.broker_transport_options = transport_options
+
     t = MonitorThread(app=app)
     t.daemon = True
     t.start()
+    w = WorkerMonitoringThread(app=app)
+    w.daemon = True
+    w.start()
     start_httpd(opts.addr)
     t.join()
+    w.join()
 
 
 if __name__ == '__main__':

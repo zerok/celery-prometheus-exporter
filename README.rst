@@ -12,6 +12,8 @@ So far it provides access to the following metrics:
 * ``celery_tasks`` exposes the number of tasks currently known to the queue
   seperated by ``state`` (RUNNING, STARTED, ...).
 * ``celery_workers`` exposes the number of currently probably alive workers
+* ``celery_task_latency`` exposes a histogram of task latency, i.e. the time until
+  tasks are picked up by a worker
 
 
 How to use
@@ -46,6 +48,10 @@ If you need to pass additional options to your broker's transport use the
 E.g. to set your master name when using Redis Sentinel for broker discovery:
 ``--transport_options '{"master_name": "mymaster"}'``
 
+Use ``--tz`` to specify the timezone the Celery app is using. Otherwise the
+systems local time will be used.
+
+
 If you then look at the exposed metrics, you should see something like this::
 
   $ http get http://localhost:8888/metrics | grep celery_
@@ -61,6 +67,26 @@ If you then look at the exposed metrics, you should see something like this::
   celery_tasks{state="RECEIVED"} 0.0
   celery_tasks{state="REVOKED"} 0.0
   celery_tasks{state="RETRY"} 0.0
+  # HELP celery_task_latency Seconds between a task is received and started.
+  # TYPE celery_task_latency histogram
+  celery_task_latency_bucket{le="0.005"} 0.0
+  celery_task_latency_bucket{le="0.01"} 0.0
+  celery_task_latency_bucket{le="0.025"} 0.0
+  celery_task_latency_bucket{le="0.05"} 0.0
+  celery_task_latency_bucket{le="0.075"} 0.0
+  celery_task_latency_bucket{le="0.1"} 0.0
+  celery_task_latency_bucket{le="0.25"} 0.0
+  celery_task_latency_bucket{le="0.5"} 0.0
+  celery_task_latency_bucket{le="0.75"} 0.0
+  celery_task_latency_bucket{le="1.0"} 0.0
+  celery_task_latency_bucket{le="2.5"} 0.0
+  celery_task_latency_bucket{le="5.0"} 0.0
+  celery_task_latency_bucket{le="7.5"} 0.0
+  celery_task_latency_bucket{le="10.0"} 0.0
+  celery_task_latency_bucket{le="+Inf"} 0.0
+  celery_task_latency_count 0.0
+  celery_task_latency_sum 0.0
+
 
 Limitations
 ===========
