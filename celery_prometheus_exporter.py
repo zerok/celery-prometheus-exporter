@@ -1,6 +1,7 @@
 import argparse
 import celery
 import celery.states
+import celery.events.state
 import collections
 import logging
 import prometheus_client
@@ -48,26 +49,40 @@ class MonitorThread(threading.Thread):
         # with this exact situation so we'll use that for now.
         with self._state._mutex:
             if evt['type'].startswith('task-'):
-                self._collect_tasks(evt)
+                event_state = evt['type'].split('-').pop()
+                state = celery.events.state.TASK_EVENT_TO_STATE[event_state]
+                if state == celery.states.STARTED:
+                    self._observe_latency(evt)
+                self._collect_tasks(evt, state)
             WORKERS.set(len([w for w in self._state.workers.values() if w.alive]))
 
-    def _process_task_received(self, evt):
-        with self._state._mutex:
-            self._tasks_started[evt['uuid']] = evt['local_received']
-            self._collect_tasks(evt)
+    def _observe_latency(self, evt):
+        try:
+            prev_evt = self._state.tasks[evt['uuid']]
+        except KeyError:
+            pass
+        else:
+            # ignore latency if it is a retry
+            if prev_evt.state == celery.states.RECEIVED:
+                LATENCY.observe(evt['local_received'] - prev_evt.local_received)
 
-    def _process_task_started(self, evt):
-        with self._state._mutex:
-            try:
-                start = self._tasks_started.pop(evt['uuid'])
-            except KeyError:
-                pass
-            else:
-                LATENCY.observe(evt['local_received'] - start)
-            self._collect_tasks(evt)
+    def _collect_tasks(self, evt, state):
+        if state in celery.states.READY_STATES:
+            self._incr_ready_task(evt, state)
+        else:
+            # add event to list of in-progress tasks
+            self._state._event(evt)
+        self._collect_unready_tasks()
 
-    def _collect_tasks(self, evt):
-        self._state._event(evt)
+    def _incr_ready_task(self, evt, state):
+        try:
+            # remove event from list of in-progress tasks
+            self._state.tasks.pop(evt['uuid'])
+        except KeyError:
+            pass
+        TASKS.labels(state).inc()
+
+    def _collect_unready_tasks(self):
         cnt = collections.Counter(
             t.state for _, t in self._state.tasks.items())
         self._known_states.update(cnt.elements())
@@ -83,8 +98,6 @@ class MonitorThread(threading.Thread):
             try:
                 with self._app.connection() as conn:
                     recv = self._app.events.Receiver(conn, handlers={
-                        'task-received': self._process_task_received,
-                        'task-started': self._process_task_started,
                         '*': self._process_event,
                     })
                     recv.capture(limit=None, timeout=None, wakeup=True)
