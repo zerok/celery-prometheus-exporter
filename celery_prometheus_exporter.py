@@ -2,6 +2,7 @@ import argparse
 import celery
 import celery.states
 import collections
+from itertools import chain
 import logging
 import prometheus_client
 import signal
@@ -19,7 +20,7 @@ DEFAULT_ADDR = '0.0.0.0:8888'
 LOG_FORMAT = '[%(asctime)s] %(name)s:%(levelname)s: %(message)s'
 
 TASKS = prometheus_client.Gauge(
-    'celery_tasks', 'Number of tasks per state', ['state'])
+    'celery_tasks', 'Number of tasks per state', ['state', 'name'])
 WORKERS = prometheus_client.Gauge(
     'celery_workers', 'Number of alive workers')
 LATENCY = prometheus_client.Histogram(
@@ -69,14 +70,21 @@ class MonitorThread(threading.Thread):
     def _collect_tasks(self, evt):
         self._state._event(evt)
         cnt = collections.Counter(
-            t.state for _, t in self._state.tasks.items())
+            (t.state, t.name) for _, t in self._state.tasks.items() if t.name)
         self._known_states.update(cnt.elements())
         seen_states = set()
-        for state_name, count in cnt.items():
-            TASKS.labels(state_name).set(count)
-            seen_states.add(state_name)
-        for state_name in self._known_states - seen_states:
-            TASKS.labels(state_name).set(0)
+        for task_state, count in cnt.items():
+            state_name, task_name = task_state
+            TASKS.labels(
+                state=state_name,
+                name=task_name,
+            ).set(count)
+            seen_states.add(task_state)
+        for state_name, task_name in self._known_states - seen_states:
+            TASKS.labels(
+                state=state_name,
+                name=task_name,
+            ).set(0)
 
     def _monitor(self):
         while True:
@@ -87,11 +95,12 @@ class MonitorThread(threading.Thread):
                         'task-started': self._process_task_started,
                         '*': self._process_event,
                     })
+                    setup_metrics(self._app)
                     recv.capture(limit=None, timeout=None, wakeup=True)
                     self.log.info("Connected to broker")
             except Exception as e:
                 self.log.error("Queue connection failed", e)
-                setup_metrics()
+                setup_metrics(self._app)
                 time.sleep(5)
 
 
@@ -106,14 +115,22 @@ class WorkerMonitoringThread(threading.Thread):
             time.sleep(5)
 
 
-def setup_metrics():
+def setup_metrics(app):
     """
     This initializes the available metrics with default values so that
     even before the first event is received, data can be exposed.
     """
-    for state in celery.states.ALL_STATES:
-        TASKS.labels(state).set(0)
     WORKERS.set(0)
+    try:
+        registered_tasks = app.control.inspect().registered_tasks().values()
+    except Exception as e:
+        for metric in TASKS.collect():
+            for name, labels, cnt in metric.samples:
+                TASKS.labels(**labels).set(0)
+    else:
+        for task_name in set(chain.from_iterable(registered_tasks)):
+            for state in celery.states.ALL_STATES:
+                TASKS.labels(state=state, name=task_name).set(0)
 
 
 def start_httpd(addr):
@@ -167,8 +184,8 @@ def main():
         os.environ['TZ'] = opts.tz
         time.tzset()
 
-    setup_metrics()
     app = celery.Celery(broker=opts.broker)
+    setup_metrics(app)
     t = MonitorThread(app=app)
     t.daemon = True
     t.start()
