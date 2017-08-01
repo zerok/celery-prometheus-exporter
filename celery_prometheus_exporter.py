@@ -8,6 +8,7 @@ import signal
 import sys
 import threading
 import time
+import json
 import os
 
 __VERSION__ = (1, 1, 0, 'final', 0)
@@ -142,6 +143,9 @@ def main():
         '--broker', dest='broker', default=DEFAULT_BROKER,
         help="URL to the Celery broker. Defaults to {}".format(DEFAULT_BROKER))
     parser.add_argument(
+        '--transport-options', dest='transport_options',
+        help="JSON object with additional options passed to the underlying transport.")
+    parser.add_argument(
         '--addr', dest='addr', default=DEFAULT_ADDR,
         help="Address the HTTPD should listen on. Defaults to {}".format(
             DEFAULT_ADDR))
@@ -169,6 +173,17 @@ def main():
 
     setup_metrics()
     app = celery.Celery(broker=opts.broker)
+
+    if opts.transport_options:
+        try:
+            transport_options = json.loads(opts.transport_options)
+        except ValueError:
+            print("Error parsing broker transport options from JSON '{}'"
+                  .format(opts.transport_options))
+            return
+        else:
+            app.conf.broker_transport_options = transport_options
+
     t = MonitorThread(app=app)
     t.daemon = True
     t.start()
