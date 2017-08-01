@@ -179,8 +179,8 @@ def main():
             transport_options = json.loads(opts.transport_options)
         except ValueError:
             print("Error parsing broker transport options from JSON '{}'"
-                  .format(opts.transport_options))
-            return
+                  .format(opts.transport_options), file=sys.stderr)
+            sys.exit(1)
         else:
             app.conf.broker_transport_options = transport_options
 
