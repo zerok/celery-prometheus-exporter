@@ -36,21 +36,22 @@ class MonitorThread(threading.Thread):
     def __init__(self, *args, app=None, **kwargs):
         self._app = app
         self.log = logging.getLogger('monitor')
-        super().__init__(*args, **kwargs)
-
-    def run(self):
         self._state = self._app.events.State()
         self._known_states = set()
         self._tasks_started = dict()
+        super().__init__(*args, **kwargs)
+
+    def run(self):  # pragma: no cover
         self._monitor()
 
     def _process_event(self, evt):
-        # Events might come in in parallel. Celery already has a lock that deals
-        # with this exact situation so we'll use that for now.
+        # Events might come in in parallel. Celery already has a lock
+        # that deals with this exact situation so we'll use that for now.
         with self._state._mutex:
             if evt['type'].startswith('task-'):
                 self._collect_tasks(evt)
-            WORKERS.set(len([w for w in self._state.workers.values() if w.alive]))
+            WORKERS.set(
+                len([w for w in self._state.workers.values() if w.alive]))
 
     def _process_task_received(self, evt):
         with self._state._mutex:
@@ -61,7 +62,7 @@ class MonitorThread(threading.Thread):
         with self._state._mutex:
             try:
                 start = self._tasks_started.pop(evt['uuid'])
-            except KeyError:
+            except KeyError:  # pragma: no cover
                 pass
             else:
                 LATENCY.observe(evt['local_received'] - start)
@@ -79,7 +80,7 @@ class MonitorThread(threading.Thread):
         for state_name in self._known_states - seen_states:
             TASKS.labels(state_name).set(0)
 
-    def _monitor(self):
+    def _monitor(self):  # pragma: no cover
         while True:
             try:
                 with self._app.connection() as conn:
@@ -97,14 +98,21 @@ class MonitorThread(threading.Thread):
 
 
 class WorkerMonitoringThread(threading.Thread):
+    celery_ping_timeout_seconds = 5
+    periodicity_seconds = 5
+
     def __init__(self, *args, app=None, **kwargs):
         self._app = app
         super().__init__(*args, **kwargs)
 
-    def run(self):
+    def run(self):  # pragma: no cover
         while True:
-            WORKERS.set(len(self._app.control.ping(timeout=5)))
-            time.sleep(5)
+            self.update_workers_count()
+            time.sleep(self.periodicity_seconds)
+
+    def update_workers_count(self):
+        WORKERS.set(len(self._app.control.ping(
+            timeout=self.celery_ping_timeout_seconds)))
 
 
 def setup_metrics():
@@ -117,9 +125,9 @@ def setup_metrics():
     WORKERS.set(0)
 
 
-def start_httpd(addr):
+def start_httpd(addr):  # pragma: no cover
     """
-    Starts the exposing HTTPD using the addr provided in a seperate
+    Starts the exposing HTTPD using the addr provided in a separate
     thread.
     """
     host, port = addr.split(':')
@@ -127,7 +135,7 @@ def start_httpd(addr):
     prometheus_client.start_http_server(int(port), host)
 
 
-def shutdown(signum, frame):
+def shutdown(signum, frame):  # pragma: no cover
     """
     Shutdown is called if the process receives a TERM signal. This way
     we try to prevent an ugly stacktrace being rendered to the user on
@@ -137,7 +145,7 @@ def shutdown(signum, frame):
     sys.exit(0)
 
 
-def main():
+def main():  # pragma: no cover
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--broker', dest='broker', default=DEFAULT_BROKER,
@@ -156,7 +164,8 @@ def main():
         '--verbose', action='store_true', default=False,
         help="Enable verbose logging")
     parser.add_argument(
-        '--version', action='version', version='.'.join([str(x) for x in __VERSION__]))
+        '--version', action='version',
+        version='.'.join([str(x) for x in __VERSION__]))
     opts = parser.parse_args()
 
     if opts.verbose:
@@ -195,5 +204,5 @@ def main():
     w.join()
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     main()
