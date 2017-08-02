@@ -9,6 +9,7 @@ import signal
 import sys
 import threading
 import time
+import json
 import os
 
 __VERSION__ = (1, 1, 0, 'final', 0)
@@ -36,17 +37,17 @@ class MonitorThread(threading.Thread):
     def __init__(self, *args, app=None, **kwargs):
         self._app = app
         self.log = logging.getLogger('monitor')
-        super().__init__(*args, **kwargs)
-
-    def run(self):
         self._state = self._app.events.State()
         self._known_states = set()
         self._tasks_started = dict()
+        super().__init__(*args, **kwargs)
+
+    def run(self):  # pragma: no cover
         self._monitor()
 
     def _process_event(self, evt):
-        # Events might come in in parallel. Celery already has a lock that deals
-        # with this exact situation so we'll use that for now.
+        # Events might come in in parallel. Celery already has a lock
+        # that deals with this exact situation so we'll use that for now.
         with self._state._mutex:
             if evt['type'].startswith('task-'):
                 event_state = evt['type'].split('-').pop()
@@ -54,12 +55,13 @@ class MonitorThread(threading.Thread):
                 if state == celery.states.STARTED:
                     self._observe_latency(evt)
                 self._collect_tasks(evt, state)
-            WORKERS.set(len([w for w in self._state.workers.values() if w.alive]))
+            WORKERS.set(
+                len([w for w in self._state.workers.values() if w.alive]))
 
     def _observe_latency(self, evt):
         try:
             prev_evt = self._state.tasks[evt['uuid']]
-        except KeyError:
+        except KeyError:  # pragma: no cover
             pass
         else:
             # ignore latency if it is a retry
@@ -78,7 +80,7 @@ class MonitorThread(threading.Thread):
         try:
             # remove event from list of in-progress tasks
             self._state.tasks.pop(evt['uuid'])
-        except KeyError:
+        except KeyError:  # pragma: no cover
             pass
         TASKS.labels(state).inc()
 
@@ -93,7 +95,7 @@ class MonitorThread(threading.Thread):
         for state_name in self._known_states - seen_states:
             TASKS.labels(state_name).set(0)
 
-    def _monitor(self):
+    def _monitor(self):  # pragma: no cover
         while True:
             try:
                 with self._app.connection() as conn:
@@ -109,14 +111,21 @@ class MonitorThread(threading.Thread):
 
 
 class WorkerMonitoringThread(threading.Thread):
+    celery_ping_timeout_seconds = 5
+    periodicity_seconds = 5
+
     def __init__(self, *args, app=None, **kwargs):
         self._app = app
         super().__init__(*args, **kwargs)
 
-    def run(self):
+    def run(self):  # pragma: no cover
         while True:
-            WORKERS.set(len(self._app.control.ping(timeout=5)))
-            time.sleep(5)
+            self.update_workers_count()
+            time.sleep(self.periodicity_seconds)
+
+    def update_workers_count(self):
+        WORKERS.set(len(self._app.control.ping(
+            timeout=self.celery_ping_timeout_seconds)))
 
 
 def setup_metrics():
@@ -129,9 +138,9 @@ def setup_metrics():
     WORKERS.set(0)
 
 
-def start_httpd(addr):
+def start_httpd(addr):  # pragma: no cover
     """
-    Starts the exposing HTTPD using the addr provided in a seperate
+    Starts the exposing HTTPD using the addr provided in a separate
     thread.
     """
     host, port = addr.split(':')
@@ -139,7 +148,7 @@ def start_httpd(addr):
     prometheus_client.start_http_server(int(port), host)
 
 
-def shutdown(signum, frame):
+def shutdown(signum, frame):  # pragma: no cover
     """
     Shutdown is called if the process receives a TERM signal. This way
     we try to prevent an ugly stacktrace being rendered to the user on
@@ -149,11 +158,14 @@ def shutdown(signum, frame):
     sys.exit(0)
 
 
-def main():
+def main():  # pragma: no cover
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--broker', dest='broker', default=DEFAULT_BROKER,
         help="URL to the Celery broker. Defaults to {}".format(DEFAULT_BROKER))
+    parser.add_argument(
+        '--transport-options', dest='transport_options',
+        help="JSON object with additional options passed to the underlying transport.")
     parser.add_argument(
         '--addr', dest='addr', default=DEFAULT_ADDR,
         help="Address the HTTPD should listen on. Defaults to {}".format(
@@ -165,7 +177,8 @@ def main():
         '--verbose', action='store_true', default=False,
         help="Enable verbose logging")
     parser.add_argument(
-        '--version', action='version', version='.'.join([str(x) for x in __VERSION__]))
+        '--version', action='version',
+        version='.'.join([str(x) for x in __VERSION__]))
     opts = parser.parse_args()
 
     if opts.verbose:
@@ -182,6 +195,17 @@ def main():
 
     setup_metrics()
     app = celery.Celery(broker=opts.broker)
+
+    if opts.transport_options:
+        try:
+            transport_options = json.loads(opts.transport_options)
+        except ValueError:
+            print("Error parsing broker transport options from JSON '{}'"
+                  .format(opts.transport_options), file=sys.stderr)
+            sys.exit(1)
+        else:
+            app.conf.broker_transport_options = transport_options
+
     t = MonitorThread(app=app)
     t.daemon = True
     t.start()
@@ -193,5 +217,5 @@ def main():
     w.join()
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     main()
