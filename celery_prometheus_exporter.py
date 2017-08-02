@@ -1,6 +1,7 @@
 import argparse
 import celery
 import celery.states
+import celery.events
 import collections
 import logging
 import prometheus_client
@@ -48,28 +49,50 @@ class MonitorThread(threading.Thread):
         # Events might come in in parallel. Celery already has a lock
         # that deals with this exact situation so we'll use that for now.
         with self._state._mutex:
-            if evt['type'].startswith('task-'):
-                self._collect_tasks(evt)
+            if celery.events.group_from(evt['type']) == 'task':
+                evt_state = evt['type'][5:]
+                try:
+                    # Celery 4
+                    state = celery.events.state.TASK_EVENT_TO_STATE[evt_state]
+                except AttributeError:  # pragma: no cover
+                    # Celery 3
+                    task = celery.events.state.Task()
+                    task.event(evt_state)
+                    state = task.state
+                if state == celery.states.STARTED:
+                    self._observe_latency(evt)
+                self._collect_tasks(evt, state)
             WORKERS.set(
                 len([w for w in self._state.workers.values() if w.alive]))
 
-    def _process_task_received(self, evt):
-        with self._state._mutex:
-            self._tasks_started[evt['uuid']] = evt['local_received']
-            self._collect_tasks(evt)
+    def _observe_latency(self, evt):
+        try:
+            prev_evt = self._state.tasks[evt['uuid']]
+        except KeyError:  # pragma: no cover
+            pass
+        else:
+            # ignore latency if it is a retry
+            if prev_evt.state == celery.states.RECEIVED:
+                LATENCY.observe(
+                    evt['local_received'] - prev_evt.local_received)
 
-    def _process_task_started(self, evt):
-        with self._state._mutex:
-            try:
-                start = self._tasks_started.pop(evt['uuid'])
-            except KeyError:  # pragma: no cover
-                pass
-            else:
-                LATENCY.observe(evt['local_received'] - start)
-            self._collect_tasks(evt)
+    def _collect_tasks(self, evt, state):
+        if state in celery.states.READY_STATES:
+            self._incr_ready_task(evt, state)
+        else:
+            # add event to list of in-progress tasks
+            self._state._event(evt)
+        self._collect_unready_tasks()
 
-    def _collect_tasks(self, evt):
-        self._state._event(evt)
+    def _incr_ready_task(self, evt, state):
+        try:
+            # remove event from list of in-progress tasks
+            self._state.tasks.pop(evt['uuid'])
+        except KeyError:  # pragma: no cover
+            pass
+        TASKS.labels(state).inc()
+
+    def _collect_unready_tasks(self):
         cnt = collections.Counter(
             t.state for _, t in self._state.tasks.items())
         self._known_states.update(cnt.elements())
@@ -85,8 +108,6 @@ class MonitorThread(threading.Thread):
             try:
                 with self._app.connection() as conn:
                     recv = self._app.events.Receiver(conn, handlers={
-                        'task-received': self._process_task_received,
-                        'task-started': self._process_task_started,
                         '*': self._process_event,
                     })
                     recv.capture(limit=None, timeout=None, wakeup=True)
@@ -152,7 +173,8 @@ def main():  # pragma: no cover
         help="URL to the Celery broker. Defaults to {}".format(DEFAULT_BROKER))
     parser.add_argument(
         '--transport-options', dest='transport_options',
-        help="JSON object with additional options passed to the underlying transport.")
+        help=("JSON object with additional options passed to the underlying "
+              "transport."))
     parser.add_argument(
         '--addr', dest='addr', default=DEFAULT_ADDR,
         help="Address the HTTPD should listen on. Defaults to {}".format(
