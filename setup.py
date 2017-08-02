@@ -28,7 +28,7 @@ setup(
     ],
     install_requires=[
         'celery>=3',
-        'prometheus_client',
+        'prometheus_client>=0.0.20',
     ],
     entry_points={
         'console_scripts': [

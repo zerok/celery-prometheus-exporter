@@ -91,7 +91,7 @@ class MonitorThread(threading.Thread):
             self._state.tasks.pop(evt['uuid'])
         except KeyError:  # pragma: no cover
             pass
-        TASKS.labels(state).inc()
+        TASKS.labels(state=state, name=evt['name']).inc()
 
     def _collect_unready_tasks(self):
         cnt = collections.Counter(
@@ -153,7 +153,7 @@ def setup_metrics(app):
     WORKERS.set(0)
     try:
         registered_tasks = app.control.inspect().registered_tasks().values()
-    except Exception as e:
+    except Exception:  # pragma: no cover
         for metric in TASKS.collect():
             for name, labels, cnt in metric.samples:
                 TASKS.labels(**labels).set(0)
