@@ -73,7 +73,8 @@ class MonitorThread(threading.Thread):
         else:
             # ignore latency if it is a retry
             if prev_evt.state == celery.states.RECEIVED:
-                LATENCY.observe(evt['local_received'] - prev_evt.local_received)
+                LATENCY.observe(
+                    evt['local_received'] - prev_evt.local_received)
 
     def _collect_tasks(self, evt, state):
         if state in celery.states.READY_STATES:
@@ -172,7 +173,8 @@ def main():  # pragma: no cover
         help="URL to the Celery broker. Defaults to {}".format(DEFAULT_BROKER))
     parser.add_argument(
         '--transport-options', dest='transport_options',
-        help="JSON object with additional options passed to the underlying transport.")
+        help=("JSON object with additional options passed to the underlying "
+              "transport."))
     parser.add_argument(
         '--addr', dest='addr', default=DEFAULT_ADDR,
         help="Address the HTTPD should listen on. Defaults to {}".format(
