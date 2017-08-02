@@ -1,7 +1,7 @@
 import argparse
 import celery
 import celery.states
-import celery.events.state
+import celery.events
 import collections
 import logging
 import prometheus_client
@@ -49,9 +49,16 @@ class MonitorThread(threading.Thread):
         # Events might come in in parallel. Celery already has a lock
         # that deals with this exact situation so we'll use that for now.
         with self._state._mutex:
-            if evt['type'].startswith('task-'):
-                event_state = evt['type'].split('-').pop()
-                state = celery.events.state.TASK_EVENT_TO_STATE[event_state]
+            if celery.events.group_from(evt['type']) == 'task':
+                evt_state = evt['type'][5:]
+                try:
+                    # Celery 4
+                    state = celery.events.state.TASK_EVENT_TO_STATE[evt_state]
+                except AttributeError:  # pragma: no cover
+                    # Celery 3
+                    task = celery.events.state.Task()
+                    task.event(evt_state)
+                    state = task.state
                 if state == celery.states.STARTED:
                     self._observe_latency(evt)
                 self._collect_tasks(evt, state)

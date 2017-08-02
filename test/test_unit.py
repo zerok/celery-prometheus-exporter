@@ -68,7 +68,7 @@ class TestMockedCelery(TestCase):
         assert REGISTRY.get_sample_value('celery_task_latency_count') == 0
         assert REGISTRY.get_sample_value('celery_task_latency_sum') == 0
 
-        m._process_task_received(Event(
+        m._process_event(Event(
             'task-received', uuid=task_uuid, name=task_name,
             args='()', kwargs='{}', retries=0, eta=None, hostname=hostname,
             clock=0,
@@ -82,7 +82,7 @@ class TestMockedCelery(TestCase):
             assert REGISTRY.get_sample_value(
                 'celery_tasks', labels=dict(state=state)) == 1
 
-        m._process_task_started(Event(
+        m._process_event(Event(
             'task-started', uuid=task_uuid, hostname=hostname,
             clock=1,
             local_received=local_received + latency_before_started))
