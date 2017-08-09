@@ -96,7 +96,10 @@ class MonitorThread(threading.Thread):
         except KeyError:  # pragma: no cover
             pass
         TASKS.labels(state=state).inc()
-        TASKS_NAME.labels(state=state, name=evt['name']).inc()
+        try:
+            TASKS_NAME.labels(state=state, name=evt['name']).inc()
+        except KeyError:  # pragma: no cover
+            pass
 
     def _collect_unready_tasks(self):
         # count unready tasks by state
