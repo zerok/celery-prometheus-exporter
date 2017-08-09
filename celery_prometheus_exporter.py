@@ -22,7 +22,10 @@ DEFAULT_ADDR = '0.0.0.0:8888'
 LOG_FORMAT = '[%(asctime)s] %(name)s:%(levelname)s: %(message)s'
 
 TASKS = prometheus_client.Gauge(
-    'celery_tasks', 'Number of tasks per state', ['state', 'name'])
+    'celery_tasks', 'Number of tasks per state', ['state'])
+TASKS_NAME = prometheus_client.Gauge(
+    'celery_tasks_by_name', 'Number of tasks per state and name',
+    ['state', 'name'])
 WORKERS = prometheus_client.Gauge(
     'celery_workers', 'Number of alive workers')
 LATENCY = prometheus_client.Histogram(
@@ -40,6 +43,7 @@ class MonitorThread(threading.Thread):
         self.log = logging.getLogger('monitor')
         self._state = self._app.events.State()
         self._known_states = set()
+        self._known_states_names = set()
         self._tasks_started = dict()
         super().__init__(*args, **kwargs)
 
@@ -91,25 +95,25 @@ class MonitorThread(threading.Thread):
             self._state.tasks.pop(evt['uuid'])
         except KeyError:  # pragma: no cover
             pass
-        TASKS.labels(state=state, name=evt['name']).inc()
+        TASKS.labels(state=state).inc()
+        TASKS_NAME.labels(state=state, name=evt['name']).inc()
 
     def _collect_unready_tasks(self):
-        cnt = collections.Counter(
-            (t.state, t.name) for _, t in self._state.tasks.items() if t.name)
+        # count unready tasks by state
+        cnt = collections.Counter(t.state for t in self._state.tasks.values())
         self._known_states.update(cnt.elements())
-        seen_states = set()
-        for task_state, count in cnt.items():
-            state_name, task_name = task_state
-            TASKS.labels(
-                state=state_name,
-                name=task_name,
-            ).set(count)
-            seen_states.add(task_state)
-        for state_name, task_name in self._known_states - seen_states:
-            TASKS.labels(
-                state=state_name,
-                name=task_name,
-            ).set(0)
+        for task_state in self._known_states:
+            TASKS.labels(state=task_state).set(cnt[task_state])
+
+        # count unready tasks by state and name
+        cnt = collections.Counter(
+            (t.state, t.name) for t in self._state.tasks.values() if t.name)
+        self._known_states_names.update(cnt.elements())
+        for task_state in self._known_states_names:
+            TASKS_NAME.labels(
+                state=task_state[0],
+                name=task_state[1],
+            ).set(cnt[task_state])
 
     def _monitor(self):  # pragma: no cover
         while True:
@@ -157,10 +161,14 @@ def setup_metrics(app):
         for metric in TASKS.collect():
             for name, labels, cnt in metric.samples:
                 TASKS.labels(**labels).set(0)
+        for metric in TASKS_NAME.collect():
+            for name, labels, cnt in metric.samples:
+                TASKS_NAME.labels(**labels).set(0)
     else:
-        for task_name in set(chain.from_iterable(registered_tasks)):
-            for state in celery.states.ALL_STATES:
-                TASKS.labels(state=state, name=task_name).set(0)
+        for state in celery.states.ALL_STATES:
+            TASKS.labels(state=state).set(0)
+            for task_name in set(chain.from_iterable(registered_tasks)):
+                TASKS_NAME.labels(state=state, name=task_name).set(0)
 
 
 def start_httpd(addr):  # pragma: no cover

@@ -25,9 +25,7 @@ class TestMockedCelery(TestCase):
             setup_metrics(self.app)  # reset metrics
 
     def test_initial_metric_values(self):
-        for state in celery.states.ALL_STATES:
-            assert REGISTRY.get_sample_value(
-                'celery_tasks', labels=dict(state=state, name=self.task)) == 0
+        self._assert_task_states(celery.states.ALL_STATES, 0)
         assert REGISTRY.get_sample_value('celery_workers') == 0
         assert REGISTRY.get_sample_value('celery_task_latency_count') == 0
         assert REGISTRY.get_sample_value('celery_task_latency_sum') == 0
@@ -63,9 +61,7 @@ class TestMockedCelery(TestCase):
 
         m = MonitorThread(app=self.app)
 
-        for state in celery.states.ALL_STATES:
-            assert REGISTRY.get_sample_value(
-                'celery_tasks', labels=dict(state=state, name=self.task)) == 0
+        self._assert_task_states(celery.states.ALL_STATES, 0)
         assert REGISTRY.get_sample_value('celery_task_latency_count') == 0
         assert REGISTRY.get_sample_value('celery_task_latency_sum') == 0
 
@@ -74,41 +70,32 @@ class TestMockedCelery(TestCase):
             args='()', kwargs='{}', retries=0, eta=None, hostname=hostname,
             clock=0,
             local_received=local_received))
-
-        for state in celery.states.ALL_STATES - {celery.states.RECEIVED}:
-            assert REGISTRY.get_sample_value(
-                'celery_tasks', labels=dict(state=state, name=self.task)) == 0
-
-        for state in {celery.states.RECEIVED}:
-            assert REGISTRY.get_sample_value(
-                'celery_tasks', labels=dict(state=state, name=self.task)) == 1
+        self._assert_all_states({celery.states.RECEIVED})
 
         m._process_event(Event(
             'task-started', uuid=task_uuid, hostname=hostname,
             clock=1, name=self.task,
             local_received=local_received + latency_before_started))
-
-        for state in celery.states.ALL_STATES - {celery.states.STARTED}:
-            assert REGISTRY.get_sample_value(
-                'celery_tasks', labels=dict(state=state, name=self.task)) == 0
-
-        for state in {celery.states.STARTED}:
-            assert REGISTRY.get_sample_value(
-                'celery_tasks', labels=dict(state=state, name=self.task)) == 1
+        self._assert_all_states({celery.states.STARTED})
 
         m._process_event(Event(
             'task-succeeded', uuid=task_uuid, result='42', name=self.task,
             runtime=runtime, hostname=hostname, clock=2,
             local_received=local_received + latency_before_started + runtime))
-
-        for state in celery.states.ALL_STATES - {celery.states.SUCCESS}:
-            assert REGISTRY.get_sample_value(
-                'celery_tasks', labels=dict(state=state, name=self.task)) == 0
-
-        for state in {celery.states.SUCCESS}:
-            assert REGISTRY.get_sample_value(
-                'celery_tasks', labels=dict(state=state, name=self.task)) == 1
+        self._assert_all_states({celery.states.SUCCESS})
 
         assert REGISTRY.get_sample_value('celery_task_latency_count') == 1
         self.assertAlmostEqual(REGISTRY.get_sample_value(
             'celery_task_latency_sum'), latency_before_started)
+
+    def _assert_task_states(self, states, cnt):
+        for state in states:
+            assert REGISTRY.get_sample_value(
+                'celery_tasks', labels=dict(state=state)) == cnt
+            task_by_name_label = dict(state=state, name=self.task)
+            assert REGISTRY.get_sample_value(
+                'celery_tasks_by_name', labels=task_by_name_label) == cnt
+
+    def _assert_all_states(self, exclude):
+        self._assert_task_states(celery.states.ALL_STATES - exclude, 0)
+        self._assert_task_states(exclude, 1)
