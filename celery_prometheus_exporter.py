@@ -231,7 +231,6 @@ def main():  # pragma: no cover
         time.tzset()
 
     app = celery.Celery(broker=opts.broker)
-    setup_metrics(app)
 
     if opts.transport_options:
         try:
@@ -242,6 +241,8 @@ def main():  # pragma: no cover
             sys.exit(1)
         else:
             app.conf.broker_transport_options = transport_options
+
+    setup_metrics(app)
 
     t = MonitorThread(app=app)
     t.daemon = True
