@@ -3,6 +3,7 @@ import celery
 import celery.states
 import celery.events
 import collections
+from itertools import chain
 import logging
 import prometheus_client
 import signal
@@ -22,6 +23,9 @@ LOG_FORMAT = '[%(asctime)s] %(name)s:%(levelname)s: %(message)s'
 
 TASKS = prometheus_client.Gauge(
     'celery_tasks', 'Number of tasks per state', ['state'])
+TASKS_NAME = prometheus_client.Gauge(
+    'celery_tasks_by_name', 'Number of tasks per state and name',
+    ['state', 'name'])
 WORKERS = prometheus_client.Gauge(
     'celery_workers', 'Number of alive workers')
 LATENCY = prometheus_client.Histogram(
@@ -39,6 +43,7 @@ class MonitorThread(threading.Thread):
         self.log = logging.getLogger('monitor')
         self._state = self._app.events.State()
         self._known_states = set()
+        self._known_states_names = set()
         self._tasks_started = dict()
         super().__init__(*args, **kwargs)
 
@@ -90,18 +95,28 @@ class MonitorThread(threading.Thread):
             self._state.tasks.pop(evt['uuid'])
         except KeyError:  # pragma: no cover
             pass
-        TASKS.labels(state).inc()
+        TASKS.labels(state=state).inc()
+        try:
+            TASKS_NAME.labels(state=state, name=evt['name']).inc()
+        except KeyError:  # pragma: no cover
+            pass
 
     def _collect_unready_tasks(self):
-        cnt = collections.Counter(
-            t.state for _, t in self._state.tasks.items())
+        # count unready tasks by state
+        cnt = collections.Counter(t.state for t in self._state.tasks.values())
         self._known_states.update(cnt.elements())
-        seen_states = set()
-        for state_name, count in cnt.items():
-            TASKS.labels(state_name).set(count)
-            seen_states.add(state_name)
-        for state_name in self._known_states - seen_states:
-            TASKS.labels(state_name).set(0)
+        for task_state in self._known_states:
+            TASKS.labels(state=task_state).set(cnt[task_state])
+
+        # count unready tasks by state and name
+        cnt = collections.Counter(
+            (t.state, t.name) for t in self._state.tasks.values() if t.name)
+        self._known_states_names.update(cnt.elements())
+        for task_state in self._known_states_names:
+            TASKS_NAME.labels(
+                state=task_state[0],
+                name=task_state[1],
+            ).set(cnt[task_state])
 
     def _monitor(self):  # pragma: no cover
         while True:
@@ -110,11 +125,12 @@ class MonitorThread(threading.Thread):
                     recv = self._app.events.Receiver(conn, handlers={
                         '*': self._process_event,
                     })
+                    setup_metrics(self._app)
                     recv.capture(limit=None, timeout=None, wakeup=True)
                     self.log.info("Connected to broker")
             except Exception as e:
                 self.log.error("Queue connection failed", e)
-                setup_metrics()
+                setup_metrics(self._app)
                 time.sleep(5)
 
 
@@ -136,14 +152,26 @@ class WorkerMonitoringThread(threading.Thread):
             timeout=self.celery_ping_timeout_seconds)))
 
 
-def setup_metrics():
+def setup_metrics(app):
     """
     This initializes the available metrics with default values so that
     even before the first event is received, data can be exposed.
     """
-    for state in celery.states.ALL_STATES:
-        TASKS.labels(state).set(0)
     WORKERS.set(0)
+    try:
+        registered_tasks = app.control.inspect().registered_tasks().values()
+    except Exception:  # pragma: no cover
+        for metric in TASKS.collect():
+            for name, labels, cnt in metric.samples:
+                TASKS.labels(**labels).set(0)
+        for metric in TASKS_NAME.collect():
+            for name, labels, cnt in metric.samples:
+                TASKS_NAME.labels(**labels).set(0)
+    else:
+        for state in celery.states.ALL_STATES:
+            TASKS.labels(state=state).set(0)
+            for task_name in set(chain.from_iterable(registered_tasks)):
+                TASKS_NAME.labels(state=state, name=task_name).set(0)
 
 
 def start_httpd(addr):  # pragma: no cover
@@ -202,7 +230,6 @@ def main():  # pragma: no cover
         os.environ['TZ'] = opts.tz
         time.tzset()
 
-    setup_metrics()
     app = celery.Celery(broker=opts.broker)
 
     if opts.transport_options:
@@ -214,6 +241,8 @@ def main():  # pragma: no cover
             sys.exit(1)
         else:
             app.conf.broker_transport_options = transport_options
+
+    setup_metrics(app)
 
     t = MonitorThread(app=app)
     t.daemon = True

@@ -10,7 +10,9 @@ standalone-service to make reuse easier across different frameworks.
 So far it provides access to the following metrics:
 
 * ``celery_tasks`` exposes the number of tasks currently known to the queue
-  seperated by ``state`` (RUNNING, STARTED, ...).
+  grouped by ``state`` (RECEIVED, STARTED, ...).
+* ``celery_tasks_by_name`` exposes the number of tasks currently known to the queue
+  grouped by ``name`` and ``state``.
 * ``celery_workers`` exposes the number of currently probably alive workers
 * ``celery_task_latency`` exposes a histogram of task latency, i.e. the time until
   tasks are picked up by a worker
@@ -60,32 +62,48 @@ If you then look at the exposed metrics, you should see something like this::
   celery_workers 1.0
   # HELP celery_tasks Number of tasks per state
   # TYPE celery_tasks gauge
+  celery_tasks{state="RECEIVED"} 3.0
   celery_tasks{state="PENDING"} 0.0
-  celery_tasks{state="STARTED"} 0.0
-  celery_tasks{state="SUCCESS"} 0.0
-  celery_tasks{state="FAILURE"} 0.0
-  celery_tasks{state="RECEIVED"} 0.0
+  celery_tasks{state="STARTED"} 1.0
+  celery_tasks{state="RETRY"} 2.0
+  celery_tasks{state="FAILURE"} 1.0
   celery_tasks{state="REVOKED"} 0.0
-  celery_tasks{state="RETRY"} 0.0
+  celery_tasks{state="SUCCESS"} 8.0
+  # HELP celery_tasks_by_name Number of tasks per state
+  # TYPE celery_tasks_by_name gauge
+  celery_tasks_by_name{name="my_app.tasks.calculate_something",state="RECEIVED"} 0.0
+  celery_tasks_by_name{name="my_app.tasks.calculate_something",state="PENDING"} 0.0
+  celery_tasks_by_name{name="my_app.tasks.calculate_something",state="STARTED"} 0.0
+  celery_tasks_by_name{name="my_app.tasks.calculate_something",state="RETRY"} 0.0
+  celery_tasks_by_name{name="my_app.tasks.calculate_something",state="FAILURE"} 0.0
+  celery_tasks_by_name{name="my_app.tasks.calculate_something",state="REVOKED"} 0.0
+  celery_tasks_by_name{name="my_app.tasks.calculate_something",state="SUCCESS"} 1.0
+  celery_tasks_by_name{name="my_app.tasks.fetch_some_data",state="RECEIVED"} 3.0
+  celery_tasks_by_name{name="my_app.tasks.fetch_some_data",state="PENDING"} 0.0
+  celery_tasks_by_name{name="my_app.tasks.fetch_some_data",state="STARTED"} 1.0
+  celery_tasks_by_name{name="my_app.tasks.fetch_some_data",state="RETRY"} 2.0
+  celery_tasks_by_name{name="my_app.tasks.fetch_some_data",state="FAILURE"} 1.0
+  celery_tasks_by_name{name="my_app.tasks.fetch_some_data",state="REVOKED"} 0.0
+  celery_tasks_by_name{name="my_app.tasks.fetch_some_data",state="SUCCESS"} 7.0
   # HELP celery_task_latency Seconds between a task is received and started.
   # TYPE celery_task_latency histogram
-  celery_task_latency_bucket{le="0.005"} 0.0
-  celery_task_latency_bucket{le="0.01"} 0.0
-  celery_task_latency_bucket{le="0.025"} 0.0
-  celery_task_latency_bucket{le="0.05"} 0.0
-  celery_task_latency_bucket{le="0.075"} 0.0
-  celery_task_latency_bucket{le="0.1"} 0.0
-  celery_task_latency_bucket{le="0.25"} 0.0
-  celery_task_latency_bucket{le="0.5"} 0.0
-  celery_task_latency_bucket{le="0.75"} 0.0
-  celery_task_latency_bucket{le="1.0"} 0.0
-  celery_task_latency_bucket{le="2.5"} 0.0
-  celery_task_latency_bucket{le="5.0"} 0.0
-  celery_task_latency_bucket{le="7.5"} 0.0
-  celery_task_latency_bucket{le="10.0"} 0.0
-  celery_task_latency_bucket{le="+Inf"} 0.0
-  celery_task_latency_count 0.0
-  celery_task_latency_sum 0.0
+  celery_task_latency_bucket{le="0.005"} 2.0
+  celery_task_latency_bucket{le="0.01"} 3.0
+  celery_task_latency_bucket{le="0.025"} 4.0
+  celery_task_latency_bucket{le="0.05"} 4.0
+  celery_task_latency_bucket{le="0.075"} 5.0
+  celery_task_latency_bucket{le="0.1"} 5.0
+  celery_task_latency_bucket{le="0.25"} 5.0
+  celery_task_latency_bucket{le="0.5"} 5.0
+  celery_task_latency_bucket{le="0.75"} 5.0
+  celery_task_latency_bucket{le="1.0"} 5.0
+  celery_task_latency_bucket{le="2.5"} 8.0
+  celery_task_latency_bucket{le="5.0"} 11.0
+  celery_task_latency_bucket{le="7.5"} 11.0
+  celery_task_latency_bucket{le="10.0"} 11.0
+  celery_task_latency_bucket{le="+Inf"} 11.0
+  celery_task_latency_count 11.0
+  celery_task_latency_sum 16.478713035583496
 
 
 Limitations
