@@ -90,15 +90,12 @@ class MonitorThread(threading.Thread):
         self._collect_unready_tasks()
 
     def _incr_ready_task(self, evt, state):
-        try:
-            # remove event from list of in-progress tasks
-            self._state.tasks.pop(evt['uuid'])
-        except KeyError:  # pragma: no cover
-            pass
         TASKS.labels(state=state).inc()
         try:
-            TASKS_NAME.labels(state=state, name=evt['name']).inc()
-        except KeyError:  # pragma: no cover
+            # remove event from list of in-progress tasks
+            event = self._state.tasks.pop(evt['uuid'])
+            TASKS_NAME.labels(state=state, name=event.name).inc()
+        except (KeyError, AttributeError):  # pragma: no cover
             pass
 
     def _collect_unready_tasks(self):
