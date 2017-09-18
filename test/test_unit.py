@@ -79,7 +79,7 @@ class TestMockedCelery(TestCase):
         self._assert_all_states({celery.states.STARTED})
 
         m._process_event(Event(
-            'task-succeeded', uuid=task_uuid, result='42', name=self.task,
+            'task-succeeded', uuid=task_uuid, result='42',
             runtime=runtime, hostname=hostname, clock=2,
             local_received=local_received + latency_before_started + runtime))
         self._assert_all_states({celery.states.SUCCESS})
