@@ -13,11 +13,11 @@ import time
 import json
 import os
 
-__VERSION__ = (1, 1, 0, 'final', 0)
+__VERSION__ = (1, 1, 1, 'final', 0)
 
 
-DEFAULT_BROKER = 'redis://redis:6379/0'
-DEFAULT_ADDR = '0.0.0.0:8888'
+DEFAULT_BROKER = os.environ.get('BROKER_URL', 'redis://redis:6379/0')
+DEFAULT_ADDR = os.environ.get('DEFAULT_ADDR', '0.0.0.0:8888')
 
 LOG_FORMAT = '[%(asctime)s] %(name)s:%(levelname)s: %(message)s'
 
