@@ -1,2 +1,2 @@
-redis==2.10.5
-prometheus_client==0.0.20
+redis==2.10.6
+prometheus_client==0.0.21

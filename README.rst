@@ -37,10 +37,13 @@ http://docs.celeryproject.org/en/latest/userguide/configuration.html#worker-send
 Alternatively, you can use the bundle Makefile and Dockerfile to generate a
 Docker image.
 
-If you want the HTTPD to listen to another port, use the ``--addr`` option.
+By default, the HTTPD will listen at ``0.0.0.0:8888``. If you want the HTTPD
+to listen to another port, use the ``--addr`` option or the environment variable
+``DEFAULT_ADDR``.
 
 By default, this will expect the broker to be available through
-``redis://redis:6379/0``. If you're using AMQP or something else other than
+``redis://redis:6379/0``, although you can change via environment variable
+``DEFAULT_BROKER``. If you're using AMQP or something else other than
 Redis, take a look at the Celery documentation and install the additioinal
 requirements 😊 Also use the ``--broker`` option to specify a different broker
 URL.
