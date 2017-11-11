@@ -137,6 +137,7 @@ class WorkerMonitoringThread(threading.Thread):
 
     def __init__(self, *args, app=None, **kwargs):
         self._app = app
+        self.log = logging.getLogger('workers-monitor')
         super().__init__(*args, **kwargs)
 
     def run(self):  # pragma: no cover
@@ -145,8 +146,11 @@ class WorkerMonitoringThread(threading.Thread):
             time.sleep(self.periodicity_seconds)
 
     def update_workers_count(self):
-        WORKERS.set(len(self._app.control.ping(
-            timeout=self.celery_ping_timeout_seconds)))
+        try:
+            WORKERS.set(len(self._app.control.ping(
+                timeout=self.celery_ping_timeout_seconds)))
+        except Exception as exc:
+            self.log.error("Error while pinging workers: %r", exc)
 
 
 def setup_metrics(app):
