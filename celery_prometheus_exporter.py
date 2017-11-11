@@ -126,7 +126,7 @@ class MonitorThread(threading.Thread):
                     recv.capture(limit=None, timeout=None, wakeup=True)
                     self.log.info("Connected to broker")
             except Exception as e:
-                self.log.error("Queue connection failed", e)
+                self.log.error("Queue connection failed: %r", e)
                 setup_metrics(self._app)
                 time.sleep(5)
 
