@@ -67,8 +67,6 @@ class MonitorThread(threading.Thread):
                 if state == celery.states.STARTED:
                     self._observe_latency(evt)
                 self._collect_tasks(evt, state)
-            WORKERS.set(
-                len([w for w in self._state.workers.values() if w.alive]))
 
     def _observe_latency(self, evt):
         try:
