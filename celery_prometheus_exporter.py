@@ -147,7 +147,7 @@ class WorkerMonitoringThread(threading.Thread):
         try:
             WORKERS.set(len(self._app.control.ping(
                 timeout=self.celery_ping_timeout_seconds)))
-        except Exception as exc:
+        except Exception as exc: # pragma: no cover
             self.log.error("Error while pinging workers: %r", exc)
 
 
