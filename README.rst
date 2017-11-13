@@ -2,6 +2,9 @@
 celery-prometheus-exporter
 ==========================
 
+.. image:: https://img.shields.io/docker/automated/zerok/celery-prometheus-exporter.svg?maxAge=2592000
+    :target: https://hub.docker.com/r/zerok/celery-prometheus-exporter/
+
 celery-prometheus-exporter is a little exporter for Celery related metrics in
 order to get picked up by Prometheus. As with other exporters like
 mongodb\_exporter or node\_exporter this has been implemented as a
