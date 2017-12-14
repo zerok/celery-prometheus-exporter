@@ -1,3 +1,4 @@
+from __future__ import print_function
 import argparse
 import celery
 import celery.states
@@ -38,14 +39,14 @@ class MonitorThread(threading.Thread):
     exposed from Celery using its eventing system.
     """
 
-    def __init__(self, *args, app=None, **kwargs):
+    def __init__(self, app=None, *args, **kwargs):
         self._app = app
         self.log = logging.getLogger('monitor')
         self._state = self._app.events.State()
         self._known_states = set()
         self._known_states_names = set()
         self._tasks_started = dict()
-        super().__init__(*args, **kwargs)
+        super(MonitorThread, self).__init__(*args, **kwargs)
 
     def run(self):  # pragma: no cover
         self._monitor()
@@ -133,10 +134,10 @@ class WorkerMonitoringThread(threading.Thread):
     celery_ping_timeout_seconds = 5
     periodicity_seconds = 5
 
-    def __init__(self, *args, app=None, **kwargs):
+    def __init__(self, app=None, *args, **kwargs):
         self._app = app
         self.log = logging.getLogger('workers-monitor')
-        super().__init__(*args, **kwargs)
+        super(WorkerMonitoringThread, self).__init__(*args, **kwargs)
 
     def run(self):  # pragma: no cover
         while True:
