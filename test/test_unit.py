@@ -6,7 +6,10 @@ from celery.events import Event
 from celery.utils import uuid
 from prometheus_client import REGISTRY
 from unittest import TestCase
-from unittest.mock import patch
+try:
+    from unittest.mock import patch
+except ImportError:
+    from mock import patch
 
 from celery_prometheus_exporter import (
     WorkerMonitoringThread, setup_metrics, MonitorThread
