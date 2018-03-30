@@ -42,7 +42,8 @@ class MonitorThread(threading.Thread):
     def __init__(self, app=None, *args, **kwargs):
         self._app = app
         self.log = logging.getLogger('monitor')
-        self._state = self._app.events.State()
+        max_tasks_in_memory = kwargs.pop('max_tasks_in_memory', None)
+        self._state = self._app.events.State(max_tasks_in_memory=max_tasks_in_memory)
         self._known_states = set()
         self._known_states_names = set()
         self._tasks_started = dict()
@@ -214,6 +215,9 @@ def main():  # pragma: no cover
         '--verbose', action='store_true', default=False,
         help="Enable verbose logging")
     parser.add_argument(
+        '--max_tasks_in_memory', dest='max_tasks_in_memory', default=None, type=int,
+        help="Tasks cache size")
+    parser.add_argument(
         '--version', action='version',
         version='.'.join([str(x) for x in __VERSION__]))
     opts = parser.parse_args()
@@ -244,7 +248,7 @@ def main():  # pragma: no cover
 
     setup_metrics(app)
 
-    t = MonitorThread(app=app)
+    t = MonitorThread(app=app, max_tasks_in_memory=opts.max_tasks_in_memory)
     t.daemon = True
     t.start()
     w = WorkerMonitoringThread(app=app)
