@@ -215,7 +215,7 @@ def main():  # pragma: no cover
         '--verbose', action='store_true', default=False,
         help="Enable verbose logging")
     parser.add_argument(
-        '--max_tasks_in_memory', dest='max_tasks_in_memory', default=None, type=int,
+        '--max_tasks_in_memory', dest='max_tasks_in_memory', default=10000, type=int,
         help="Tasks cache size")
     parser.add_argument(
         '--version', action='version',
