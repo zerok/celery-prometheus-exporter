@@ -14,7 +14,7 @@ import time
 import json
 import os
 
-__VERSION__ = (1, 1, 1, 'final', 0)
+__VERSION__ = (1, 2, 0, 'final', 0)
 
 
 DEFAULT_BROKER = os.environ.get('BROKER_URL', 'redis://redis:6379/0')
