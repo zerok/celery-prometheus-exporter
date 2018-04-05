@@ -19,6 +19,7 @@ __VERSION__ = (1, 1, 1, 'final', 0)
 
 DEFAULT_BROKER = os.environ.get('BROKER_URL', 'redis://redis:6379/0')
 DEFAULT_ADDR = os.environ.get('DEFAULT_ADDR', '0.0.0.0:8888')
+DEFAULT_MAX_TASKS_IN_MEMORY = int(os.environ.get('DEFAULT_MAX_TASKS_IN_MEMORY', '10000'))
 
 LOG_FORMAT = '[%(asctime)s] %(name)s:%(levelname)s: %(message)s'
 
@@ -42,7 +43,8 @@ class MonitorThread(threading.Thread):
     def __init__(self, app=None, *args, **kwargs):
         self._app = app
         self.log = logging.getLogger('monitor')
-        self._state = self._app.events.State()
+        max_tasks_in_memory = kwargs.pop('max_tasks_in_memory', DEFAULT_MAX_TASKS_IN_MEMORY)
+        self._state = self._app.events.State(max_tasks_in_memory=max_tasks_in_memory)
         self._known_states = set()
         self._known_states_names = set()
         self._tasks_started = dict()
@@ -214,6 +216,9 @@ def main():  # pragma: no cover
         '--verbose', action='store_true', default=False,
         help="Enable verbose logging")
     parser.add_argument(
+        '--max_tasks_in_memory', dest='max_tasks_in_memory', default=DEFAULT_MAX_TASKS_IN_MEMORY, type=int,
+        help="Tasks cache size. Defaults to {}".format(DEFAULT_MAX_TASKS_IN_MEMORY))
+    parser.add_argument(
         '--version', action='version',
         version='.'.join([str(x) for x in __VERSION__]))
     opts = parser.parse_args()
@@ -244,7 +249,7 @@ def main():  # pragma: no cover
 
     setup_metrics(app)
 
-    t = MonitorThread(app=app)
+    t = MonitorThread(app=app, max_tasks_in_memory=opts.max_tasks_in_memory)
     t.daemon = True
     t.start()
     w = WorkerMonitoringThread(app=app)
