@@ -2,6 +2,7 @@ from time import time
 
 import celery
 import celery.states
+
 from celery.events import Event
 from celery.utils import uuid
 from prometheus_client import REGISTRY
@@ -12,7 +13,7 @@ except ImportError:
     from mock import patch
 
 from celery_prometheus_exporter import (
-    WorkerMonitoringThread, setup_metrics, MonitorThread
+    WorkerMonitoringThread, setup_metrics, MonitorThread, EnableEventsThread
 )
 
 from celery_test_utils import get_celery_app
@@ -90,6 +91,12 @@ class TestMockedCelery(TestCase):
         assert REGISTRY.get_sample_value('celery_task_latency_count') == 1
         self.assertAlmostEqual(REGISTRY.get_sample_value(
             'celery_task_latency_sum'), latency_before_started)
+
+    def test_enable_events(self):
+        with patch.object(self.app.control, 'enable_events') as mock_enable_events:
+            e = EnableEventsThread(app=self.app)
+            e.enable_events()
+            mock_enable_events.assert_called_once_with()
 
     def _assert_task_states(self, states, cnt):
         for state in states:
