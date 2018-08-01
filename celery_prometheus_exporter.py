@@ -157,7 +157,7 @@ class WorkerMonitoringThread(threading.Thread):
 class EnableEventsThread(threading.Thread):
     periodicity_seconds = 5
 
-    def __init__(self, *args, app=None, **kwargs):
+    def __init__(self, *args, app=None, **kwargs):  # pragma: no cover
         self._app = app
         self.log = logging.getLogger('enable-events')
         super().__init__(*args, **kwargs)
