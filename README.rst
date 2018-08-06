@@ -37,6 +37,12 @@ whatever other dependencies you will need for it to speak with your broker 🙂
 Celery workers have to be configured to send task-related events:
 http://docs.celeryproject.org/en/latest/userguide/configuration.html#worker-send-task-events.
 
+Running ``celery-prometheus-exporter`` with the ``--enable-events`` argument
+will periodically enable events on the workers. This is useful because it
+allows running celery workers with events disabled, until
+``celery-prometheus-exporter`` is deployed, at which time events get enabled
+on the workers.
+
 Alternatively, you can use the bundle Makefile and Dockerfile to generate a
 Docker image.
 

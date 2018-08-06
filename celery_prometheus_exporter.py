@@ -154,6 +154,25 @@ class WorkerMonitoringThread(threading.Thread):
             self.log.error("Error while pinging workers: %r", exc)
 
 
+class EnableEventsThread(threading.Thread):
+    periodicity_seconds = 5
+
+    def __init__(self, app=None, *args, **kwargs):  # pragma: no cover
+        self._app = app
+        self.log = logging.getLogger('enable-events')
+        super(EnableEventsThread, self).__init__(*args, **kwargs)
+
+    def run(self):  # pragma: no cover
+        while True:
+            try:
+                self.enable_events()
+            except Exception as exc:
+                self.log.error("Error while trying to enable events: %r", exc)
+            time.sleep(self.periodicity_seconds)
+
+    def enable_events(self):
+        self._app.control.enable_events()
+
 def setup_metrics(app):
     """
     This initializes the available metrics with default values so that
@@ -210,6 +229,9 @@ def main():  # pragma: no cover
         help="Address the HTTPD should listen on. Defaults to {}".format(
             DEFAULT_ADDR))
     parser.add_argument(
+        '--enable-events', action='store_true',
+        help="Periodically enable Celery events")
+    parser.add_argument(
         '--tz', dest='tz',
         help="Timezone used by the celery app.")
     parser.add_argument(
@@ -255,9 +277,16 @@ def main():  # pragma: no cover
     w = WorkerMonitoringThread(app=app)
     w.daemon = True
     w.start()
+    e = None
+    if opts.enable_events:
+        e = EnableEventsThread(app=app)
+        e.daemon = True
+        e.start()
     start_httpd(opts.addr)
     t.join()
     w.join()
+    if e is not None:
+        e.join()
 
 
 if __name__ == '__main__':  # pragma: no cover
