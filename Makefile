@@ -14,10 +14,10 @@ clean:
 
 publish: all
 	docker tag celery_exporter:1-celery3 zerok/celery_exporter:1-celery3
-	docker tag celery_exporter:1-celery3 zerok/celery_exporter:1.2.0-celery3
+	docker tag celery_exporter:1-celery3 zerok/celery_exporter:1.3.0-celery3
 	docker tag celery_exporter:1-celery4 zerok/celery_exporter:1-celery4
-	docker tag celery_exporter:1-celery4 zerok/celery_exporter:1.2.0-celery4
+	docker tag celery_exporter:1-celery4 zerok/celery_exporter:1.3.0-celery4
 	docker push zerok/celery_exporter:1-celery4
-	docker push zerok/celery_exporter:1.2.0-celery4
+	docker push zerok/celery_exporter:1.3.0-celery4
 	docker push zerok/celery_exporter:1-celery3
-	docker push zerok/celery_exporter:1.2.0-celery3
+	docker push zerok/celery_exporter:1.3.0-celery3
