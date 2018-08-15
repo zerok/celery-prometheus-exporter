@@ -28,8 +28,8 @@ TASKS = prometheus_client.Gauge(
 TASKS_NAME = prometheus_client.Gauge(
     'celery_tasks_by_name', 'Number of tasks per state and name',
     ['state', 'name'])
-TASKS_RUNTIME_BY_NAME = prometheus_client.Histogram(
-    'celery_tasks_runtime_by_name', 'Task runtime per name',
+TASKS_RUNTIME = prometheus_client.Histogram(
+    'celery_tasks_runtime', 'Task runtime',
     ['name'])
 WORKERS = prometheus_client.Gauge(
     'celery_workers', 'Number of alive workers')
@@ -100,8 +100,8 @@ class MonitorThread(threading.Thread):
             event = self._state.tasks.pop(evt['uuid'])
             TASKS_NAME.labels(state=state, name=event.name).inc()
             if 'runtime' in evt:
-                TASKS_RUNTIME_BY_NAME.labels(name=event.name) \
-                                     .observe(evt['runtime'])
+                TASKS_RUNTIME.labels(name=event.name) \
+                             .observe(evt['runtime'])
         except (KeyError, AttributeError):  # pragma: no cover
             pass
 

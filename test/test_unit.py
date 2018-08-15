@@ -92,10 +92,10 @@ class TestMockedCelery(TestCase):
         self.assertAlmostEqual(REGISTRY.get_sample_value(
             'celery_task_latency_sum'), latency_before_started)
         assert REGISTRY.get_sample_value(
-            'celery_tasks_runtime_by_name_count',
+            'celery_tasks_runtime_count',
             labels=dict(name=self.task)) == 1
         assert REGISTRY.get_sample_value(
-            'celery_tasks_runtime_by_name_sum',
+            'celery_tasks_runtime_sum',
             labels=dict(name=self.task)) == 234.5
 
     def test_enable_events(self):
