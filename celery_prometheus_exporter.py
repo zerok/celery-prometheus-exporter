@@ -127,7 +127,7 @@ class MonitorThread(threading.Thread):
                     recv.capture(limit=None, timeout=None, wakeup=True)
                     self.log.info("Connected to broker")
             except Exception as e:
-                self.log.error("Queue connection failed: %r", e)
+                self.log.exception("Queue connection failed")
                 setup_metrics(self._app)
                 time.sleep(5)
 
@@ -151,7 +151,7 @@ class WorkerMonitoringThread(threading.Thread):
             WORKERS.set(len(self._app.control.ping(
                 timeout=self.celery_ping_timeout_seconds)))
         except Exception as exc: # pragma: no cover
-            self.log.error("Error while pinging workers: %r", exc)
+            self.log.exception("Error while pinging workers")
 
 
 class EnableEventsThread(threading.Thread):
@@ -167,7 +167,7 @@ class EnableEventsThread(threading.Thread):
             try:
                 self.enable_events()
             except Exception as exc:
-                self.log.error("Error while trying to enable events: %r", exc)
+                self.log.exception("Error while trying to enable events")
             time.sleep(self.periodicity_seconds)
 
     def enable_events(self):
