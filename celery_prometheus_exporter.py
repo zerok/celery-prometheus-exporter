@@ -29,7 +29,7 @@ TASKS_NAME = prometheus_client.Gauge(
     'celery_tasks_by_name', 'Number of tasks per state and name',
     ['state', 'name'])
 TASKS_RUNTIME = prometheus_client.Histogram(
-    'celery_tasks_runtime', 'Task runtime',
+    'celery_tasks_runtime_seconds', 'Task runtime (seconds)',
     ['name'])
 WORKERS = prometheus_client.Gauge(
     'celery_workers', 'Number of alive workers')
