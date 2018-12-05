@@ -52,7 +52,7 @@ to listen to another port, use the ``--addr`` option or the environment variable
 
 By default, this will expect the broker to be available through
 ``redis://redis:6379/0``, although you can change via environment variable
-``DEFAULT_BROKER``. If you're using AMQP or something else other than
+``BROKER_URL``. If you're using AMQP or something else other than
 Redis, take a look at the Celery documentation and install the additioinal
 requirements 😊 Also use the ``--broker`` option to specify a different broker
 URL.
