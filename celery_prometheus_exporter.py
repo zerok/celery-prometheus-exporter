@@ -28,6 +28,9 @@ TASKS = prometheus_client.Gauge(
 TASKS_NAME = prometheus_client.Gauge(
     'celery_tasks_by_name', 'Number of tasks per state and name',
     ['state', 'name'])
+TASKS_RUNTIME = prometheus_client.Histogram(
+    'celery_tasks_runtime_seconds', 'Task runtime (seconds)',
+    ['name'])
 WORKERS = prometheus_client.Gauge(
     'celery_workers', 'Number of alive workers')
 LATENCY = prometheus_client.Histogram(
@@ -96,6 +99,9 @@ class MonitorThread(threading.Thread):
             # remove event from list of in-progress tasks
             event = self._state.tasks.pop(evt['uuid'])
             TASKS_NAME.labels(state=state, name=event.name).inc()
+            if 'runtime' in evt:
+                TASKS_RUNTIME.labels(name=event.name) \
+                             .observe(evt['runtime'])
         except (KeyError, AttributeError):  # pragma: no cover
             pass
 
