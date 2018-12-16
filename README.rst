@@ -19,6 +19,8 @@ So far it provides access to the following metrics:
 * ``celery_workers`` exposes the number of currently probably alive workers
 * ``celery_task_latency`` exposes a histogram of task latency, i.e. the time until
   tasks are picked up by a worker
+* ``celery_tasks_runtime_seconds`` tracks the number of seconds tasks take
+  until completed as histogram
 
 
 How to use
