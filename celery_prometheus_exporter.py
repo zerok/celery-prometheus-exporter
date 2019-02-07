@@ -193,11 +193,11 @@ def setup_metrics(app):
         registered_tasks = app.control.inspect().registered_tasks().values()
     except Exception:  # pragma: no cover
         for metric in TASKS.collect():
-            for name, labels, cnt in metric.samples:
-                TASKS.labels(**labels).set(0)
+            for sample in metric.samples:
+                TASKS.labels(**sample[1]).set(0)
         for metric in TASKS_NAME.collect():
-            for name, labels, cnt in metric.samples:
-                TASKS_NAME.labels(**labels).set(0)
+            for sample in metric.samples:
+                TASKS_NAME.labels(**sample[1]).set(0)
     else:
         for state in celery.states.ALL_STATES:
             TASKS.labels(state=state).set(0)

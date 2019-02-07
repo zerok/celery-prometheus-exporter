@@ -13,10 +13,17 @@ except ImportError:
     from mock import patch
 
 from celery_prometheus_exporter import (
-    WorkerMonitoringThread, setup_metrics, MonitorThread, EnableEventsThread
+    WorkerMonitoringThread, setup_metrics, MonitorThread, EnableEventsThread,
+    TASKS
 )
 
 from celery_test_utils import get_celery_app
+
+
+class TestFallbackSetup(TestCase):
+    def test_fallback(self):
+        TASKS.labels(state='RUNNING').set(0)
+        setup_metrics(None)
 
 
 class TestMockedCelery(TestCase):
