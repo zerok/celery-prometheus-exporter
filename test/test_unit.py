@@ -99,7 +99,8 @@ class TestMockedCelery(TestCase):
             labels=dict(name=self.task)) == 234.5
 
     def test_enable_events(self):
-        with patch.object(self.app.control, 'enable_events') as mock_enable_events:
+        with patch.object(
+                self.app.control, 'enable_events') as mock_enable_events:
             e = EnableEventsThread(app=self.app)
             e.enable_events()
             mock_enable_events.assert_called_once_with()

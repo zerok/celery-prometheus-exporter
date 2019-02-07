@@ -19,7 +19,8 @@ __VERSION__ = (1, 2, 0, 'final', 0)
 
 DEFAULT_BROKER = os.environ.get('BROKER_URL', 'redis://redis:6379/0')
 DEFAULT_ADDR = os.environ.get('DEFAULT_ADDR', '0.0.0.0:8888')
-DEFAULT_MAX_TASKS_IN_MEMORY = int(os.environ.get('DEFAULT_MAX_TASKS_IN_MEMORY', '10000'))
+DEFAULT_MAX_TASKS_IN_MEMORY = int(os.environ.get('DEFAULT_MAX_TASKS_IN_MEMORY',
+                                                 '10000'))
 
 LOG_FORMAT = '[%(asctime)s] %(name)s:%(levelname)s: %(message)s'
 
@@ -46,8 +47,10 @@ class MonitorThread(threading.Thread):
     def __init__(self, app=None, *args, **kwargs):
         self._app = app
         self.log = logging.getLogger('monitor')
-        max_tasks_in_memory = kwargs.pop('max_tasks_in_memory', DEFAULT_MAX_TASKS_IN_MEMORY)
-        self._state = self._app.events.State(max_tasks_in_memory=max_tasks_in_memory)
+        max_tasks_in_memory = kwargs.pop('max_tasks_in_memory',
+                                         DEFAULT_MAX_TASKS_IN_MEMORY)
+        self._state = self._app.events.State(
+            max_tasks_in_memory=max_tasks_in_memory)
         self._known_states = set()
         self._known_states_names = set()
         self._tasks_started = dict()
@@ -132,7 +135,7 @@ class MonitorThread(threading.Thread):
                     setup_metrics(self._app)
                     recv.capture(limit=None, timeout=None, wakeup=True)
                     self.log.info("Connected to broker")
-            except Exception as e:
+            except Exception:
                 self.log.exception("Queue connection failed")
                 setup_metrics(self._app)
                 time.sleep(5)
@@ -156,7 +159,7 @@ class WorkerMonitoringThread(threading.Thread):
         try:
             WORKERS.set(len(self._app.control.ping(
                 timeout=self.celery_ping_timeout_seconds)))
-        except Exception as exc: # pragma: no cover
+        except Exception:  # pragma: no cover
             self.log.exception("Error while pinging workers")
 
 
@@ -172,12 +175,13 @@ class EnableEventsThread(threading.Thread):
         while True:
             try:
                 self.enable_events()
-            except Exception as exc:
+            except Exception:
                 self.log.exception("Error while trying to enable events")
             time.sleep(self.periodicity_seconds)
 
     def enable_events(self):
         self._app.control.enable_events()
+
 
 def setup_metrics(app):
     """
@@ -244,8 +248,10 @@ def main():  # pragma: no cover
         '--verbose', action='store_true', default=False,
         help="Enable verbose logging")
     parser.add_argument(
-        '--max_tasks_in_memory', dest='max_tasks_in_memory', default=DEFAULT_MAX_TASKS_IN_MEMORY, type=int,
-        help="Tasks cache size. Defaults to {}".format(DEFAULT_MAX_TASKS_IN_MEMORY))
+        '--max_tasks_in_memory', dest='max_tasks_in_memory',
+        default=DEFAULT_MAX_TASKS_IN_MEMORY, type=int,
+        help="Tasks cache size. Defaults to {}".format(
+            DEFAULT_MAX_TASKS_IN_MEMORY))
     parser.add_argument(
         '--version', action='version',
         version='.'.join([str(x) for x in __VERSION__]))
