@@ -21,6 +21,8 @@ DEFAULT_BROKER = os.environ.get('BROKER_URL', 'redis://redis:6379/0')
 DEFAULT_ADDR = os.environ.get('DEFAULT_ADDR', '0.0.0.0:8888')
 DEFAULT_MAX_TASKS_IN_MEMORY = int(os.environ.get('DEFAULT_MAX_TASKS_IN_MEMORY',
                                                  '10000'))
+DEFAULT_QUEUE_LIST = os.environ.get('QUEUE_LIST', [])
+
 
 LOG_FORMAT = '[%(asctime)s] %(name)s:%(levelname)s: %(message)s'
 
@@ -36,7 +38,10 @@ WORKERS = prometheus_client.Gauge(
     'celery_workers', 'Number of alive workers')
 LATENCY = prometheus_client.Histogram(
     'celery_task_latency', 'Seconds between a task is received and started.')
-
+QUEUE_LENGTH = prometheus_client.Gauge(
+    'celery_redis_queue_length', 'Number of tasks in a redis queue.',
+    ['queue_name']
+)
 
 class MonitorThread(threading.Thread):
     """
@@ -183,6 +188,31 @@ class EnableEventsThread(threading.Thread):
         self._app.control.enable_events()
 
 
+class QueueLenghtMonitoringThread(threading.Thread):
+    periodicity_seconds = 30
+
+    def __init__(self, app, queue_list):
+        # type: (celery.Celery, [str]) -> None
+        self.celery_app = app
+        self.queue_list=['queue1','queue2','queue3']
+
+        super(QueueLenghtMonitoringThread, self).__init__()
+
+    def measure_queues_length(self):
+        with self.celery_app.connection_or_acquire() as conn:
+            for queue in self.queue_list:
+                try:
+                    length = conn.default_channel.queue_declare(queue=queue, passive=True).message_count
+                except (Exception,) as  e:
+                    length = 0
+                finally:
+                    QUEUE_LENGTH.labels(queue).set(length)
+
+    def run(self):  # pragma: no cover
+        while True:
+            self.measure_queues_length()
+            time.sleep(self.periodicity_seconds)
+
 def setup_metrics(app):
     """
     This initializes the available metrics with default values so that
@@ -253,6 +283,11 @@ def main():  # pragma: no cover
         help="Tasks cache size. Defaults to {}".format(
             DEFAULT_MAX_TASKS_IN_MEMORY))
     parser.add_argument(
+        '--queue-list', dest='queue_list',
+        default=DEFAULT_QUEUE_LIST, nargs='+',
+        help="Queue List. Will be checked for its length."
+    )
+    parser.add_argument(
         '--version', action='version',
         version='.'.join([str(x) for x in __VERSION__]))
     opts = parser.parse_args()
@@ -286,9 +321,16 @@ def main():  # pragma: no cover
     t = MonitorThread(app=app, max_tasks_in_memory=opts.max_tasks_in_memory)
     t.daemon = True
     t.start()
+
     w = WorkerMonitoringThread(app=app)
     w.daemon = True
     w.start()
+
+    if opts.queue_list:
+        q = QueueLenghtMonitoringThread(app=app, queue_list=opts.queue_list)
+        q.daemon = True
+        q.start()
+
     e = None
     if opts.enable_events:
         e = EnableEventsThread(app=app)
