@@ -121,21 +121,17 @@ class TestMockedCelery(TestCase):
 
         sample_task.delay()
         monitoring_thread_instance.measure_queues_length()
-        samples = [sample for sample in QUEUE_LENGTH.collect()[0].samples if 'realqueue' in sample.labels['queue_name']]
+        sample = REGISTRY.get_sample_value('celery_queue_length', {'queue_name':'realqueue'})
 
-        self.assertEqual(1, len(samples))
-        self.assertEqual('realqueue', samples[0].labels['queue_name'])
-        self.assertEqual(1.0, samples[0].value)
+        self.assertEqual(1.0, sample)
 
     def test_set_zero_on_queue_length_when_an_channel_layer_error_occurs_during_queue_read(self):
         instance = QueueLenghtMonitoringThread(app=self.app, queue_list=['noqueue'])
 
         instance.measure_queues_length()
-        samples = [sample for sample in QUEUE_LENGTH.collect()[0].samples if 'noqueue' in sample.labels['queue_name']]
+        sample = REGISTRY.get_sample_value('celery_queue_length', {'queue_name':'noqueue'})
 
-        self.assertEqual(len(samples), 1)
-        self.assertEqual('noqueue', samples[0].labels['queue_name'])
-        self.assertEqual(0.0, samples[0].value)
+        self.assertEqual(0.0, sample)
 
     def _assert_task_states(self, states, cnt):
         for state in states:
