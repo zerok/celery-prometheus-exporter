@@ -196,7 +196,7 @@ class QueueLenghtMonitoringThread(threading.Thread):
     def __init__(self, app, queue_list):
         # type: (celery.Celery, [str]) -> None
         self.celery_app = app
-        self.queue_list=queue_list
+        self.queue_list = queue_list
         self.connection = self.celery_app.connection_or_acquire()
 
         if isinstance(self.connection, FallbackContext):
@@ -337,7 +337,13 @@ def main():  # pragma: no cover
     w.start()
 
     if opts.queue_list:
-        q = QueueLenghtMonitoringThread(app=app, queue_list=opts.queue_list)
+        if type(opts.queue_list) == str:
+            queue_list = opts.queue_list.split(',')
+        else:
+            queue_list = opts.queue_list
+
+        q = QueueLenghtMonitoringThread(app=app, queue_list=queue_list)
+
         q.daemon = True
         q.start()
 
