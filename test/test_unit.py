@@ -2,6 +2,7 @@ from time import time
 
 import celery
 import celery.states
+import amqp.exceptions
 
 from celery.events import Event
 from celery.utils import uuid
@@ -14,8 +15,8 @@ except ImportError:
 
 from celery_prometheus_exporter import (
     WorkerMonitoringThread, setup_metrics, MonitorThread, EnableEventsThread,
-    TASKS
-)
+    TASKS,
+    QueueLenghtMonitoringThread, QUEUE_LENGTH)
 
 from celery_test_utils import get_celery_app
 
@@ -111,6 +112,23 @@ class TestMockedCelery(TestCase):
             e = EnableEventsThread(app=self.app)
             e.enable_events()
             mock_enable_events.assert_called_once_with()
+
+    # @patch('celery_prometheus_exporter.QueueLenghtMonitoringThread.measure_queues_length')
+    def test_set_zero_on_queue_length_when_an_exception_occurs_during_queue_read(self, mocked_method=None):
+        QUEUE_LENGTH.labels('noqueue').set(999)
+        instance = QueueLenghtMonitoringThread(app=self.app, queue_list=['noqueue'])
+
+        instance.measure_queues_length()
+        metric = QUEUE_LENGTH.collect()
+
+        self.assertTrue(hasattr(instance, 'queue_list'))
+        self.assertTrue(hasattr(instance, 'celery_app'))
+        self.assertTrue(hasattr(instance, 'connection'))
+        self.assertEqual(len(metric), 1)
+        self.assertEqual(len(metric[0].samples), 1)
+        sample = metric[0].samples[0]
+        self.assertEqual('noqueue', sample.labels['queue_name'])
+        self.assertEqual(0.0, sample.value)
 
     def _assert_task_states(self, states, cnt):
         for state in states:
