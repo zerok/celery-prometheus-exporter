@@ -39,7 +39,7 @@ WORKERS = prometheus_client.Gauge(
 LATENCY = prometheus_client.Histogram(
     'celery_task_latency', 'Seconds between a task is received and started.')
 QUEUE_LENGTH = prometheus_client.Gauge(
-    'celery_redis_queue_length', 'Number of tasks in a redis queue.',
+    'celery_queue_length', 'Number of tasks in a redis queue.',
     ['queue_name']
 )
 
