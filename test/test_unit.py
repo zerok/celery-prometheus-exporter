@@ -18,7 +18,7 @@ from celery_prometheus_exporter import (
     TASKS,
     QueueLenghtMonitoringThread, QUEUE_LENGTH)
 
-from celery_test_utils import get_celery_app
+from celery_test_utils import get_celery_app, SampleTask
 
 
 class TestFallbackSetup(TestCase):
@@ -113,22 +113,29 @@ class TestMockedCelery(TestCase):
             e.enable_events()
             mock_enable_events.assert_called_once_with()
 
-    # @patch('celery_prometheus_exporter.QueueLenghtMonitoringThread.measure_queues_length')
-    def test_set_zero_on_queue_length_when_an_exception_occurs_during_queue_read(self, mocked_method=None):
-        QUEUE_LENGTH.labels('noqueue').set(999)
+    def test_can_measure_queue_length(self):
+        celery_app = get_celery_app(queue='realqueue')
+        sample_task = SampleTask()
+        sample_task.app = celery_app
+        monitoring_thread_instance = QueueLenghtMonitoringThread(celery_app, queue_list=['realqueue'])
+
+        sample_task.delay()
+        monitoring_thread_instance.measure_queues_length()
+        samples = [sample for sample in QUEUE_LENGTH.collect()[0].samples if 'realqueue' in sample.labels['queue_name']]
+
+        self.assertEqual(1, len(samples))
+        self.assertEqual('realqueue', samples[0].labels['queue_name'])
+        self.assertEqual(1.0, samples[0].value)
+
+    def test_set_zero_on_queue_length_when_an_channel_layer_error_occurs_during_queue_read(self):
         instance = QueueLenghtMonitoringThread(app=self.app, queue_list=['noqueue'])
 
         instance.measure_queues_length()
-        metric = QUEUE_LENGTH.collect()
+        samples = [sample for sample in QUEUE_LENGTH.collect()[0].samples if 'noqueue' in sample.labels['queue_name']]
 
-        self.assertTrue(hasattr(instance, 'queue_list'))
-        self.assertTrue(hasattr(instance, 'celery_app'))
-        self.assertTrue(hasattr(instance, 'connection'))
-        self.assertEqual(len(metric), 1)
-        self.assertEqual(len(metric[0].samples), 1)
-        sample = metric[0].samples[0]
-        self.assertEqual('noqueue', sample.labels['queue_name'])
-        self.assertEqual(0.0, sample.value)
+        self.assertEqual(len(samples), 1)
+        self.assertEqual('noqueue', samples[0].labels['queue_name'])
+        self.assertEqual(0.0, samples[0].value)
 
     def _assert_task_states(self, states, cnt):
         for state in states:
@@ -141,3 +148,8 @@ class TestMockedCelery(TestCase):
     def _assert_all_states(self, exclude):
         self._assert_task_states(celery.states.ALL_STATES - exclude, 0)
         self._assert_task_states(exclude, 1)
+
+    def _setup_task_with_celery_and_queue_support(self, queue_name, task, celery_app):
+        task.app = celery_app
+
+        return task
