@@ -13,6 +13,8 @@ import threading
 import time
 import json
 import os
+from celery.utils.objects import FallbackContext
+import amqp.exceptions
 
 __VERSION__ = (1, 2, 0, 'final', 0)
 
@@ -194,19 +196,26 @@ class QueueLenghtMonitoringThread(threading.Thread):
     def __init__(self, app, queue_list):
         # type: (celery.Celery, [str]) -> None
         self.celery_app = app
-        self.queue_list=['queue1','queue2','queue3']
+        self.queue_list=queue_list
+        self.connection = self.celery_app.connection_or_acquire()
+
+        if isinstance(self.connection, FallbackContext):
+            self.connection = self.connection.fallback()
 
         super(QueueLenghtMonitoringThread, self).__init__()
 
     def measure_queues_length(self):
-        with self.celery_app.connection_or_acquire() as conn:
-            for queue in self.queue_list:
-                try:
-                    length = conn.default_channel.queue_declare(queue=queue, passive=True).message_count
-                except (Exception,) as  e:
-                    length = 0
-                finally:
-                    QUEUE_LENGTH.labels(queue).set(length)
+        for queue in self.queue_list:
+            try:
+                length = self.connection.default_channel.queue_declare(queue=queue, passive=True).message_count
+            except (amqp.exceptions.ChannelError,) as e:
+                logging.warning("Queue Not Found: {}. Settings its value to zero. Error: {}".format(queue, str(e)))
+                length = 0
+
+            self.set_queue_length(queue, length)
+
+    def set_queue_length(self, queue, length):
+        QUEUE_LENGTH.labels(queue).set(length)
 
     def run(self):  # pragma: no cover
         while True:
@@ -228,6 +237,7 @@ def setup_metrics(app):
         for metric in TASKS_NAME.collect():
             for sample in metric.samples:
                 TASKS_NAME.labels(**sample[1]).set(0)
+
     else:
         for state in celery.states.ALL_STATES:
             TASKS.labels(state=state).set(0)
