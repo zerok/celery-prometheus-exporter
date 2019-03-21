@@ -21,13 +21,20 @@ def decode_buckets(buckets_list):
     return [float(x) for x in buckets_list.split(',')]
 
 
-DEFAULT_BUCKETS = '.005, .01, .025, .05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0, 7.5, 10.0'
+def get_histogram_buckets_from_evn(env_name):
+    if env_name in os.environ:
+        buckets = decode_buckets(os.environ.get(env_name))
+    else:
+        buckets = prometheus_client.Histogram.DEFAULT_BUCKETS
+    return buckets
+
+
 DEFAULT_BROKER = os.environ.get('BROKER_URL', 'redis://redis:6379/0')
 DEFAULT_ADDR = os.environ.get('DEFAULT_ADDR', '0.0.0.0:8888')
 DEFAULT_MAX_TASKS_IN_MEMORY = int(os.environ.get('DEFAULT_MAX_TASKS_IN_MEMORY',
                                                  '10000'))
-RUNTIME_HISTOGRAM_BUCKETS = decode_buckets(os.environ.get('RUNTIME_HISTOGRAM_BUCKETS', DEFAULT_BUCKETS))
-LATENCY_HISTOGRAM_BUCKETS = decode_buckets(os.environ.get('LATENCY_HISTOGRAM_BUCKETS', DEFAULT_BUCKETS))
+RUNTIME_HISTOGRAM_BUCKETS = get_histogram_buckets_from_evn('RUNTIME_HISTOGRAM_BUCKET')
+LATENCY_HISTOGRAM_BUCKETS = get_histogram_buckets_from_evn('LATENCY_HISTOGRAM_BUCKET')
 
 LOG_FORMAT = '[%(asctime)s] %(name)s:%(levelname)s: %(message)s'
 
