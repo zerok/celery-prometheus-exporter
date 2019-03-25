@@ -41,7 +41,7 @@ WORKERS = prometheus_client.Gauge(
 LATENCY = prometheus_client.Histogram(
     'celery_task_latency', 'Seconds between a task is received and started.')
 QUEUE_LENGTH = prometheus_client.Gauge(
-    'celery_queue_length', 'Number of tasks in a redis queue.',
+    'celery_queue_length', 'Number of tasks in the queue.',
     ['queue_name']
 )
 
@@ -209,7 +209,7 @@ class QueueLenghtMonitoringThread(threading.Thread):
             try:
                 length = self.connection.default_channel.queue_declare(queue=queue, passive=True).message_count
             except (amqp.exceptions.ChannelError,) as e:
-                logging.warning("Queue Not Found: {}. Settings its value to zero. Error: {}".format(queue, str(e)))
+                logging.warning("Queue Not Found: {}. Setting its value to zero. Error: {}".format(queue, str(e)))
                 length = 0
 
             self.set_queue_length(queue, length)
