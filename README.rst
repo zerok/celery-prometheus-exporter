@@ -67,7 +67,7 @@ E.g. to set your master name when using Redis Sentinel for broker discovery:
 Use ``--tz`` to specify the timezone the Celery app is using. Otherwise the
 systems local time will be used.
 
-Use ``--queue_list`` to specify the list of queues that will have its length
+Use ``--queue-list`` to specify the list of queues that will have its length
 monitored (Automatic Discovery of queues isn't supported right now, see limitations/
 caveats. You can use the `QUEUE_LIST` environment variable as well.
 
