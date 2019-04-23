@@ -27,7 +27,12 @@ def get_histogram_buckets_from_evn(env_name):
     if env_name in os.environ:
         buckets = decode_buckets(os.environ.get(env_name))
     else:
-        buckets = prometheus_client.Histogram.DEFAULT_BUCKETS
+        if hasattr(prometheus_client.Histogram, 'DEFAULT_BUCKETS'):
+            buckets = prometheus_client.Histogram.DEFAULT_BUCKETS
+        else:
+            # For prometheus-client < 0.3.0 we cannot easily access
+            # the default buckets:
+            buckets = (.005, .01, .025, .05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0, 7.5, 10.0, float('inf'))
     return buckets
 
 
