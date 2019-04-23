@@ -2,6 +2,7 @@ from time import time
 
 import celery
 import celery.states
+import amqp.exceptions
 
 from celery.events import Event
 from celery.utils import uuid
@@ -14,10 +15,10 @@ except ImportError:
 
 from celery_prometheus_exporter import (
     WorkerMonitoringThread, setup_metrics, MonitorThread, EnableEventsThread,
-    TASKS
-)
+    TASKS,
+    QueueLenghtMonitoringThread, QUEUE_LENGTH)
 
-from celery_test_utils import get_celery_app
+from celery_test_utils import get_celery_app, SampleTask
 
 
 class TestFallbackSetup(TestCase):
@@ -112,6 +113,26 @@ class TestMockedCelery(TestCase):
             e.enable_events()
             mock_enable_events.assert_called_once_with()
 
+    def test_can_measure_queue_length(self):
+        celery_app = get_celery_app(queue='realqueue')
+        sample_task = SampleTask()
+        sample_task.app = celery_app
+        monitoring_thread_instance = QueueLenghtMonitoringThread(celery_app, queue_list=['realqueue'])
+
+        sample_task.delay()
+        monitoring_thread_instance.measure_queues_length()
+        sample = REGISTRY.get_sample_value('celery_queue_length', {'queue_name':'realqueue'})
+
+        self.assertEqual(1.0, sample)
+
+    def test_set_zero_on_queue_length_when_an_channel_layer_error_occurs_during_queue_read(self):
+        instance = QueueLenghtMonitoringThread(app=self.app, queue_list=['noqueue'])
+
+        instance.measure_queues_length()
+        sample = REGISTRY.get_sample_value('celery_queue_length', {'queue_name':'noqueue'})
+
+        self.assertEqual(0.0, sample)
+
     def _assert_task_states(self, states, cnt):
         for state in states:
             assert REGISTRY.get_sample_value(
@@ -123,3 +144,8 @@ class TestMockedCelery(TestCase):
     def _assert_all_states(self, exclude):
         self._assert_task_states(celery.states.ALL_STATES - exclude, 0)
         self._assert_task_states(exclude, 1)
+
+    def _setup_task_with_celery_and_queue_support(self, queue_name, task, celery_app):
+        task.app = celery_app
+
+        return task

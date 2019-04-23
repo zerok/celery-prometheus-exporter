@@ -1,0 +1,33 @@
+version: '2'
+
+services:
+  app:
+    image: celery-exporter:3
+    build:
+      context: .
+      dockerfile: Dockerfile-celery3
+    user: "65534"
+    volumes:
+      - ./:/app
+    environment:
+    - BROKER_URL=amqp://rabbit
+    entrypoint: celery -A celeryapp worker
+
+  exporter:
+    image: celery-exporter:3
+    build:
+      context: .
+      dockerfile: Dockerfile-celery3
+    volumes:
+      - ./:/app
+    environment:
+    - BROKER_URL=amqp://rabbit
+    - QUEUE_LIST=queue1,queue2,queue3
+    ports:
+      - 8888:8888
+
+  cache:
+    image: redis:alpine
+
+  rabbit:
+    image: rabbitmq:alpine

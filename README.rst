@@ -76,6 +76,10 @@ via environment variable ``LATENCY_HISTOGRAM_BUCKETS`` for tasks latency.
 Buckets should be passed as a list of float values separated by a comma.
 E.g. ``".005, .05, 0.1, 1.0, 2.5"``.
 
+Use ``--queue-list`` to specify the list of queues that will have its length
+monitored (Automatic Discovery of queues isn't supported right now, see limitations/
+caveats. You can use the `QUEUE_LIST` environment variable as well.
+
 If you then look at the exposed metrics, you should see something like this::
 
   $ http get http://localhost:8888/metrics | grep celery_
@@ -126,7 +130,8 @@ If you then look at the exposed metrics, you should see something like this::
   celery_task_latency_bucket{le="+Inf"} 11.0
   celery_task_latency_count 11.0
   celery_task_latency_sum 16.478713035583496
-
+  celery_queue_length{queue_name="queue1"} 35.0
+  celery_queue_length{queue_name="queue2"} 0.0
 
 Limitations
 ===========
@@ -136,3 +141,5 @@ Limitations
   through the events API which might be enough to figure out the final queue,
   though.
 * This has only been tested with Redis so far.
+* At this point, you should specify the queues that will be monitored using an
+  environment variable or an arg (`--queue-list`).
