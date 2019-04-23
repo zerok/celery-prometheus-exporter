@@ -1,5 +1,6 @@
 from time import time
 
+import os
 import celery
 import celery.states
 import amqp.exceptions
@@ -16,10 +17,23 @@ except ImportError:
 from celery_prometheus_exporter import (
     WorkerMonitoringThread, setup_metrics, MonitorThread, EnableEventsThread,
     TASKS,
+    get_histogram_buckets_from_evn,
     QueueLenghtMonitoringThread, QUEUE_LENGTH)
 
 from celery_test_utils import get_celery_app, SampleTask
 
+
+class TestBucketLoading(TestCase):
+    def tearDown(self):
+        if 'TEST_BUCKETS' in os.environ:
+            del os.environ['TEST_BUCKETS']
+
+    def test_default_buckets(self):
+        self.assertIsNotNone(get_histogram_buckets_from_evn('TEST_BUCKETS'))
+
+    def test_from_env(self):
+        os.environ['TEST_BUCKETS'] = '1,2,3'
+        self.assertEqual([1.0, 2.0, 3.0], get_histogram_buckets_from_evn('TEST_BUCKETS'))
 
 class TestFallbackSetup(TestCase):
     def test_fallback(self):
