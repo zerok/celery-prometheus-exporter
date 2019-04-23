@@ -19,12 +19,25 @@ import amqp.exceptions
 __VERSION__ = (1, 2, 0, 'final', 0)
 
 
+def decode_buckets(buckets_list):
+    return [float(x) for x in buckets_list.split(',')]
+
+
+def get_histogram_buckets_from_evn(env_name):
+    if env_name in os.environ:
+        buckets = decode_buckets(os.environ.get(env_name))
+    else:
+        buckets = prometheus_client.Histogram.DEFAULT_BUCKETS
+    return buckets
+
+
 DEFAULT_BROKER = os.environ.get('BROKER_URL', 'redis://redis:6379/0')
 DEFAULT_ADDR = os.environ.get('DEFAULT_ADDR', '0.0.0.0:8888')
 DEFAULT_MAX_TASKS_IN_MEMORY = int(os.environ.get('DEFAULT_MAX_TASKS_IN_MEMORY',
                                                  '10000'))
+RUNTIME_HISTOGRAM_BUCKETS = get_histogram_buckets_from_evn('RUNTIME_HISTOGRAM_BUCKET')
+LATENCY_HISTOGRAM_BUCKETS = get_histogram_buckets_from_evn('LATENCY_HISTOGRAM_BUCKET')
 DEFAULT_QUEUE_LIST = os.environ.get('QUEUE_LIST', [])
-
 
 LOG_FORMAT = '[%(asctime)s] %(name)s:%(levelname)s: %(message)s'
 
@@ -34,16 +47,17 @@ TASKS_NAME = prometheus_client.Gauge(
     'celery_tasks_by_name', 'Number of tasks per state and name',
     ['state', 'name'])
 TASKS_RUNTIME = prometheus_client.Histogram(
-    'celery_tasks_runtime_seconds', 'Task runtime (seconds)',
-    ['name'])
+    'celery_tasks_runtime_seconds', 'Task runtime (seconds)', ['name'], buckets=RUNTIME_HISTOGRAM_BUCKETS)
 WORKERS = prometheus_client.Gauge(
     'celery_workers', 'Number of alive workers')
 LATENCY = prometheus_client.Histogram(
-    'celery_task_latency', 'Seconds between a task is received and started.')
+    'celery_task_latency', 'Seconds between a task is received and started.', buckets=LATENCY_HISTOGRAM_BUCKETS)
+
 QUEUE_LENGTH = prometheus_client.Gauge(
     'celery_queue_length', 'Number of tasks in the queue.',
     ['queue_name']
 )
+
 
 class MonitorThread(threading.Thread):
     """
