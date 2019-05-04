@@ -40,8 +40,8 @@ DEFAULT_BROKER = os.environ.get('BROKER_URL', 'redis://redis:6379/0')
 DEFAULT_ADDR = os.environ.get('DEFAULT_ADDR', '0.0.0.0:8888')
 DEFAULT_MAX_TASKS_IN_MEMORY = int(os.environ.get('DEFAULT_MAX_TASKS_IN_MEMORY',
                                                  '10000'))
-RUNTIME_HISTOGRAM_BUCKETS = get_histogram_buckets_from_evn('RUNTIME_HISTOGRAM_BUCKET')
-LATENCY_HISTOGRAM_BUCKETS = get_histogram_buckets_from_evn('LATENCY_HISTOGRAM_BUCKET')
+RUNTIME_HISTOGRAM_BUCKETS = get_histogram_buckets_from_evn('RUNTIME_HISTOGRAM_BUCKETS')
+LATENCY_HISTOGRAM_BUCKETS = get_histogram_buckets_from_evn('LATENCY_HISTOGRAM_BUCKETS')
 DEFAULT_QUEUE_LIST = os.environ.get('QUEUE_LIST', [])
 
 LOG_FORMAT = '[%(asctime)s] %(name)s:%(levelname)s: %(message)s'
