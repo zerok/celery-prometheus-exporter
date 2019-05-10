@@ -18,7 +18,7 @@ from celery_prometheus_exporter import (
     WorkerMonitoringThread, setup_metrics, MonitorThread, EnableEventsThread,
     TASKS,
     get_histogram_buckets_from_evn,
-    QueueLenghtMonitoringThread, QUEUE_LENGTH)
+    QueueLengthMonitoringThread, QUEUE_LENGTH)
 
 from celery_test_utils import get_celery_app, SampleTask
 
@@ -131,7 +131,7 @@ class TestMockedCelery(TestCase):
         celery_app = get_celery_app(queue='realqueue')
         sample_task = SampleTask()
         sample_task.app = celery_app
-        monitoring_thread_instance = QueueLenghtMonitoringThread(celery_app, queue_list=['realqueue'])
+        monitoring_thread_instance = QueueLengthMonitoringThread(celery_app, queue_list=['realqueue'])
 
         sample_task.delay()
         monitoring_thread_instance.measure_queues_length()
@@ -140,7 +140,7 @@ class TestMockedCelery(TestCase):
         self.assertEqual(1.0, sample)
 
     def test_set_zero_on_queue_length_when_an_channel_layer_error_occurs_during_queue_read(self):
-        instance = QueueLenghtMonitoringThread(app=self.app, queue_list=['noqueue'])
+        instance = QueueLengthMonitoringThread(app=self.app, queue_list=['noqueue'])
 
         instance.measure_queues_length()
         sample = REGISTRY.get_sample_value('celery_queue_length', {'queue_name':'noqueue'})

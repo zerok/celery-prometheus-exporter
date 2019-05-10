@@ -209,7 +209,7 @@ class EnableEventsThread(threading.Thread):
         self._app.control.enable_events()
 
 
-class QueueLenghtMonitoringThread(threading.Thread):
+class QueueLengthMonitoringThread(threading.Thread):
     periodicity_seconds = 30
 
     def __init__(self, app, queue_list):
@@ -221,7 +221,7 @@ class QueueLenghtMonitoringThread(threading.Thread):
         if isinstance(self.connection, FallbackContext):
             self.connection = self.connection.fallback()
 
-        super(QueueLenghtMonitoringThread, self).__init__()
+        super(QueueLengthMonitoringThread, self).__init__()
 
     def measure_queues_length(self):
         for queue in self.queue_list:
@@ -361,7 +361,7 @@ def main():  # pragma: no cover
         else:
             queue_list = opts.queue_list
 
-        q = QueueLenghtMonitoringThread(app=app, queue_list=queue_list)
+        q = QueueLengthMonitoringThread(app=app, queue_list=queue_list)
 
         q.daemon = True
         q.start()
