@@ -73,6 +73,7 @@ class MonitorThread(threading.Thread):
     def __init__(self, app=None, *args, **kwargs):
         self._app = app
         self.log = logging.getLogger('monitor')
+        self.log.info('Setting up monitor...')
         max_tasks_in_memory = kwargs.pop('max_tasks_in_memory',
                                          DEFAULT_MAX_TASKS_IN_MEMORY)
         self._state = self._app.events.State(
@@ -154,6 +155,7 @@ class MonitorThread(threading.Thread):
     def _monitor(self):  # pragma: no cover
         while True:
             try:
+                self.log.info('Connecting to broker...')
                 with self._app.connection() as conn:
                     recv = self._app.events.Receiver(conn, handlers={
                         '*': self._process_event,
@@ -247,6 +249,7 @@ def setup_metrics(app):
     even before the first event is received, data can be exposed.
     """
     WORKERS.set(0)
+    logging.info('Setting up metrics, trying to connect to broker...')
     try:
         registered_tasks = app.control.inspect().registered_tasks().values()
     except Exception:  # pragma: no cover
@@ -333,6 +336,7 @@ def main():  # pragma: no cover
         os.environ['TZ'] = opts.tz
         time.tzset()
 
+    logging.info('Setting up celery for {}'.format(opts.broker))
     app = celery.Celery(broker=opts.broker)
 
     if opts.transport_options:
