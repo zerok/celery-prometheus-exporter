@@ -2,6 +2,16 @@
 celery-prometheus-exporter
 ==========================
 
+.. admonition:: info
+
+   Sadly, for the last couple of months at the time of writing this
+   (Sept 2019) I couldn't find the time to maintain this package
+   anymore. I therefore decided to archive it. If you find this code
+   useful, please fork it!
+
+   A big "THANK YOU" goes to everyone who contributed to this project
+   over the years!
+
 .. image:: https://img.shields.io/docker/automated/zerok/celery-prometheus-exporter.svg?maxAge=2592000
     :target: https://hub.docker.com/r/zerok/celery-prometheus-exporter/
 
